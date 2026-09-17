@@ -1,32 +1,63 @@
-<!DOCTYPE html><html><head><title>🇺🇸 USA AI Studio</title><meta name="viewport" content="width=device-width, initial-scale=1">
+<!DOCTYPE html><html lang="en"><head><title>🇺🇸 USA 3D AI Studio</title><meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: sans-serif; background: #0f0f0f; color: #fff; margin: 0; padding: 20px; text-align: center; }
-        h2 { color: #00e676; margin-top: 30px; border-bottom: 1px solid #333; padding-bottom: 5px;}
+        body { font-family: sans-serif; background: #0b0b0b; color: #fff; margin: 0; padding: 20px; text-align: center; }
+        h1 { color: #ffeb3b; font-size: 24px; margin-bottom: 5px; }
+        p { color: #aaa; font-size: 14px; margin-top: 0; }
+        h2 { color: #00e676; margin-top: 30px; border-bottom: 2px solid #222; padding-bottom: 8px; font-size: 18px; text-align: left; }
         .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
-        .card { background: #1e1e1e; padding: 15px; border-radius: 10px; width: 320px; text-align: left; }
-        video { width: 100%; border-radius: 8px; margin: 10px 0; }
-        .btn { background: #00e676; color: #000; display: block; padding: 10px; text-align: center; text-decoration: none; font-weight: bold; border-radius: 5px; margin-bottom: 5px; cursor: pointer; border: none; width: 100%; }
-        .btn-dark { background: #333; color: #fff; }
-        .box { display: none; background: #111; padding: 10px; border-radius: 5px; margin-top: 5px; font-size: 13px; }
-        .row { display: flex; justify-content: space-between; background: #222; margin-bottom: 5px; padding: 5px; border-radius: 3px; }
-        .txt { flex: 1; overflow-x: auto; white-space: nowrap; margin-right: 10px; color: #ccc;}
-        .cpy { background: #4285f4; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;}
-    </style></head><body><h1>🇺🇸 Automatic AI Studio</h1><h2>🐍 Funny Snake Shorts</h2><div class='grid'><div class="card"><b>📅 17-Sep-2026</b>
-        <video src="SHORT_USA_1789678505.mp4" controls></video>
-        <a href="SHORT_USA_1789678505.mp4" download class="btn">⬇️ Download</a>
-        <button class="btn btn-dark" onclick="let b=document.getElementById('b-1789678505'); b.style.display = b.style.display==='block' ? 'none' : 'block'">📝 Title, Desc & Tags</button>
-        <div class="box" id="b-1789678505">
-            <div class="row"><div class="txt" id="t-1789678505">Uninvited Slithers: Hilarious US Home Snake Encounters</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('t-1789678505').innerText)">Copy</button></div>
-            <div class="row"><div class="txt" id="d-1789678505">From toilet surprises to couch-dwelling reptiles, American homeowners share their most ridiculous snake mishaps.
-Get ready for jaw-dropping laughs as we explore the funny side of uninvited slithering roommates!</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('d-1789678505').innerText)">Copy</button></div>
-            <div class="row"><div class="txt" id="g-1789678505">#SnakeInTheHouse, #FunnyReptileStories, #USAHomeFails, #WildEncounters, #HilariousPets</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('g-1789678505').innerText)">Copy</button></div>
-        </div></div><div class="card"><b>📅 17-Sep-2026</b>
-        <video src="SHORT_USA_1789678194.mp4" controls></video>
-        <a href="SHORT_USA_1789678194.mp4" download class="btn">⬇️ Download</a>
-        <button class="btn btn-dark" onclick="let b=document.getElementById('b-1789678194'); b.style.display = b.style.display==='block' ? 'none' : 'block'">📝 Title, Desc & Tags</button>
-        <div class="box" id="b-1789678194">
-            <div class="row"><div class="txt" id="t-1789678194">Boas in the Bath: Hilarious US Home Snake Encounters</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('t-1789678194').innerText)">Copy</button></div>
-            <div class="row"><div class="txt" id="d-1789678194">From toilet surprises to closet hideouts, homeowners share their wildest snake stories.
-Discover how everyday suburban living turns into a hilarious, laugh-out-loud jungle adventure.</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('d-1789678194').innerText)">Copy</button></div>
-            <div class="row"><div class="txt" id="g-1789678194">SnakeEncounters, FunnyWildlife, HomeHumor, USAHomes, WildFails</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('g-1789678194').innerText)">Copy</button></div>
-        </div></div></div></body></html>
+        .card { background: #181818; padding: 15px; border-radius: 12px; width: 320px; border: 1px solid #333; text-align: left; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .date { font-size: 11px; color: #00e676; margin-bottom: 8px; font-weight: bold; }
+        video { width: 100%; border-radius: 8px; background: #000; margin-bottom: 10px; }
+        .btn { background: #00e676; color: #000; display: block; padding: 10px; text-align: center; text-decoration: none; font-weight: bold; border-radius: 6px; margin-bottom: 8px; cursor: pointer; border: none; width: 100%; box-sizing: border-box; }
+        .btn-dark { background: #2a2a2a; color: #fff; font-size: 13px; }
+        .box { display: none; background: #111; padding: 10px; border-radius: 8px; margin-top: 8px; font-size: 12px; border: 1px solid #333; }
+        .row { display: flex; align-items: center; background: #1a1a1a; margin-bottom: 6px; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
+        .txt { flex: 1; padding: 8px; color: #ddd; overflow-x: auto; white-space: nowrap; font-family: monospace; }
+        .cpy { background: #4285f4; color: white; border: none; padding: 8px 12px; cursor: pointer; font-weight: bold; font-size: 11px; }
+        .cpy:hover { background: #3367d6; }
+    </style></head>
+    <body>
+        <h1>🇺🇸 USA 3D Animation Studio</h1>
+        <p>Fully Automated Daily AI 3D Videos & Shorts</p>
+    <h2>🎬 Epic 3D Stories (Long)</h2><div class='grid'><div class="card">
+                <div class="date">📅 17-Sep-2026</div>
+                <video src="3D_LONG_USA_1789679357.mp4" controls preload="none"></video>
+                <a href="3D_LONG_USA_1789679357.mp4" download class="btn">⬇️ Download Video</a>
+                <button class="btn btn-dark" onclick="let b=document.getElementById('b-1789679357'); b.style.display = b.style.display==='block' ? 'none' : 'block'">📝 Title, Desc & Tags</button>
+                <div class="box" id="b-1789679357">
+                    <div style="font-size:10px; color:#888; margin-bottom:2px;">TITLE:</div>
+                    <div class="row"><div class="txt" id="t-1789679357">From Nothing to Everything: A Boy's American Dream</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('t-1789679357').innerText)">COPY</button></div>
+                    <div style="font-size:10px; color:#888; margin-bottom:2px;">DESCRIPTION:</div>
+                    <div class="row"><div class="txt" id="d-1789679357">Follow the emotional journey of a poor boy struggling in a beautiful American town who changes his life through pure hard work. An inspiring 3D animated story about resilience, faith, and turning dreams into reality.</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('d-1789679357').innerText)">COPY</button></div>
+                    <div style="font-size:10px; color:#888; margin-bottom:2px;">TAGS:</div>
+                    <div class="row"><div class="txt" id="g-1789679357">3D Animation, Inspiring Story, American Dream, Hard Work, Life Transformation</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('g-1789679357').innerText)">COPY</button></div>
+                </div>
+            </div></div><h2>🐍 3D Inverse Reality & Snake Shorts</h2><div class='grid'><div class="card">
+                <div class="date">📅 17-Sep-2026</div>
+                <video src="SHORT_USA_1789678505.mp4" controls preload="none"></video>
+                <a href="SHORT_USA_1789678505.mp4" download class="btn">⬇️ Download Video</a>
+                <button class="btn btn-dark" onclick="let b=document.getElementById('b-1789678505'); b.style.display = b.style.display==='block' ? 'none' : 'block'">📝 Title, Desc & Tags</button>
+                <div class="box" id="b-1789678505">
+                    <div style="font-size:10px; color:#888; margin-bottom:2px;">TITLE:</div>
+                    <div class="row"><div class="txt" id="t-1789678505">Uninvited Slithers: Hilarious US Home Snake Encounters</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('t-1789678505').innerText)">COPY</button></div>
+                    <div style="font-size:10px; color:#888; margin-bottom:2px;">DESCRIPTION:</div>
+                    <div class="row"><div class="txt" id="d-1789678505">From toilet surprises to couch-dwelling reptiles, American homeowners share their most ridiculous snake mishaps.
+Get ready for jaw-dropping laughs as we explore the funny side of uninvited slithering roommates!</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('d-1789678505').innerText)">COPY</button></div>
+                    <div style="font-size:10px; color:#888; margin-bottom:2px;">TAGS:</div>
+                    <div class="row"><div class="txt" id="g-1789678505">#SnakeInTheHouse, #FunnyReptileStories, #USAHomeFails, #WildEncounters, #HilariousPets</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('g-1789678505').innerText)">COPY</button></div>
+                </div>
+            </div><div class="card">
+                <div class="date">📅 17-Sep-2026</div>
+                <video src="SHORT_USA_1789678194.mp4" controls preload="none"></video>
+                <a href="SHORT_USA_1789678194.mp4" download class="btn">⬇️ Download Video</a>
+                <button class="btn btn-dark" onclick="let b=document.getElementById('b-1789678194'); b.style.display = b.style.display==='block' ? 'none' : 'block'">📝 Title, Desc & Tags</button>
+                <div class="box" id="b-1789678194">
+                    <div style="font-size:10px; color:#888; margin-bottom:2px;">TITLE:</div>
+                    <div class="row"><div class="txt" id="t-1789678194">Boas in the Bath: Hilarious US Home Snake Encounters</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('t-1789678194').innerText)">COPY</button></div>
+                    <div style="font-size:10px; color:#888; margin-bottom:2px;">DESCRIPTION:</div>
+                    <div class="row"><div class="txt" id="d-1789678194">From toilet surprises to closet hideouts, homeowners share their wildest snake stories.
+Discover how everyday suburban living turns into a hilarious, laugh-out-loud jungle adventure.</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('d-1789678194').innerText)">COPY</button></div>
+                    <div style="font-size:10px; color:#888; margin-bottom:2px;">TAGS:</div>
+                    <div class="row"><div class="txt" id="g-1789678194">SnakeEncounters, FunnyWildlife, HomeHumor, USAHomes, WildFails</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('g-1789678194').innerText)">COPY</button></div>
+                </div>
+            </div></div></body></html>
