@@ -1,6 +1,6 @@
 {
-  "id": "abhaypratapsinghdhud/usa-ai-studio",
-  "title": "USA AI Studio Auto Generator",
+  "id": "abhaypratapsinghdhud/usa-ai-studio-bot",
+  "title": "usa-ai-studio-bot",
   "code_file": "generator.py",
   "language": "python",
   "kernel_type": "script",
