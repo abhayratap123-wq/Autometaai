@@ -1,7 +1,6 @@
 import os
 import time
 import json
-import random
 import requests
 import torch
 from datetime import datetime
@@ -52,7 +51,6 @@ def ask_gemini(prompt):
 print("🔥 STARTING STABLE VIDEO GENERATION 🔥")
 vid_num = int(time.time())
 
-# Let's make a 35s Funny Snake Short first to test the full pipeline smoothly
 topic = "Hilarious snake encounters in modern USA houses"
 prompt = f"Write a 70-word USA English funny YouTube Shorts script about: {topic}. Output STRICTLY as JSON array of 3 objects: 1. 'narration': English line. 2. 'visual': 3-word visual prompt. RAW JSON ONLY."
 
@@ -69,7 +67,7 @@ except Exception as e:
     exit(1)
 
 meta = ask_gemini(f"Generate for '{topic}': 1. Catchy Title (<60 chars) 2. 2-line Description 3. 5 tags. Format: TITLE|DESC|TAGS").split('|')
-title, desc, tags = meta[0].strip(), meta[1].strip(), meta[2].strip()
+title, desc, tags = meta[0].strip(), meta[1].strip() if len(meta) > 1 else "Must watch!", meta[2].strip() if len(meta) > 2 else "shorts"
 
 clips = []
 for i, scene in enumerate(scenes):
@@ -85,23 +83,24 @@ if clips:
     clip_objs = [VideoFileClip(c) for c in clips]
     concatenate_videoclips(clip_objs).write_videofile(final_video, fps=24, codec="libx264", logger=None)
     
-    new_entry = {"file": final_video, "title": title, "desc": desc, "tags": tags, "date": today_date, "id": str(vid_num), "cat": "SHORT", "status_msg": "🟢 100% Complete", "status_type": "done"}
-
-    print("☁️ Pushing Video back to GitHub...")
+    print("☁️ Cloning GitHub Repo & Pushing Files...")
     repo_url = f"https://oauth2:{GH_PAT}@[github.com/](https://github.com/){GITHUB_REPO}.git"
     os.system(f"git clone {repo_url} myrepo")
     
     history_file = "myrepo/history.json"
     history = []
     if os.path.exists(history_file):
-        with open(history_file, "r") as f: history = json.loads(f.read())
+        try:
+            with open(history_file, "r") as f: history = json.loads(f.read())
+        except: pass
         
+    new_entry = {"file": final_video, "title": title, "desc": desc, "tags": tags, "date": today_date, "id": str(vid_num), "cat": "SHORT", "status_msg": "🟢 100% Complete", "status_type": "done"}
     history.insert(0, new_entry)
-    with open(history_file, "w") as f: f.write(json.dumps(history))
     
+    with open(history_file, "w") as f: f.write(json.dumps(history))
     os.system(f"cp {final_video} myrepo/")
 
-    # Simple HTML generator
+    # Website HTML
     html = """<!DOCTYPE html><html><head><title>🇺🇸 USA AI Studio</title><meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body { font-family: sans-serif; background: #0f0f0f; color: #fff; margin: 0; padding: 20px; text-align: center; }
@@ -137,7 +136,7 @@ if clips:
     os.system('git config user.email "bot@kaggle.com"')
     os.system('git add .')
     os.system('git commit -m "Auto Update: Video Ready 🚀"')
-    os.system('git push')
+    os.system('git push origin main || git push origin master')
     print("✅ SUCCESS! Video and website pushed to GitHub.")
 else:
     print("❌ No clips were generated.")
