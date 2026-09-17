@@ -5,6 +5,7 @@ import requests
 import torch
 from datetime import datetime
 
+# GitHub will automatically replace these placeholders when running!
 GEMINI_API_KEY = "PLACEHOLDER_GEMINI"
 GH_PAT = "PLACEHOLDER_GH_PAT"
 GITHUB_REPO = "PLACEHOLDER_GITHUB_REPO"
@@ -43,7 +44,12 @@ def ask_gemini(prompt):
     headers = {"Content-Type": "application/json"}
     try:
         res = requests.post(url, json=payload, headers=headers)
-        return res.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+        data = res.json()
+        if "candidates" in data:
+            return data['candidates'][0]['content']['parts'][0]['text'].strip()
+        else:
+            print(f"⚠️ Gemini API Response Error: {data}")
+            return None
     except Exception as e:
         print(f"❌ Gemini Error: {e}")
         return None
@@ -61,13 +67,20 @@ if not script_txt:
 
 try:
     if script_txt.startswith("```json"): script_txt = script_txt[7:-3]
+    elif script_txt.startswith("```"): script_txt = script_txt[3:-3]
     scenes = json.loads(script_txt.strip())
 except Exception as e:
-    print(f"❌ JSON Parse Error: {e}")
+    print(f"❌ JSON Parse Error: {e}\nRaw text was: {script_txt}")
     exit(1)
 
-meta = ask_gemini(f"Generate for '{topic}': 1. Catchy Title (<60 chars) 2. 2-line Description 3. 5 tags. Format: TITLE|DESC|TAGS").split('|')
-title, desc, tags = meta[0].strip(), meta[1].strip() if len(meta) > 1 else "Must watch!", meta[2].strip() if len(meta) > 2 else "shorts"
+meta_raw = ask_gemini(f"Generate for '{topic}': 1. Catchy Title (<60 chars) 2. 2-line Description 3. 5 tags. Format: TITLE|DESC|TAGS")
+if meta_raw:
+    meta = meta_raw.split('|')
+    title = meta[0].strip() if len(meta) > 0 else "Must watch!"
+    desc = meta[1].strip() if len(meta) > 1 else "Funny shorts"
+    tags = meta[2].strip() if len(meta) > 2 else "shorts"
+else:
+    title, desc, tags = "Crazy Snake! 🐍", "Must watch! #shorts", "snake, funny"
 
 clips = []
 for i, scene in enumerate(scenes):
@@ -84,7 +97,7 @@ if clips:
     concatenate_videoclips(clip_objs).write_videofile(final_video, fps=24, codec="libx264", logger=None)
     
     print("☁️ Cloning GitHub Repo & Pushing Files...")
-    repo_url = f"https://oauth2:{GH_PAT}@[github.com/](https://github.com/){GITHUB_REPO}.git"
+    repo_url = f"https://oauth2:{GH_PAT}@github.com/{GITHUB_REPO}.git"
     os.system(f"git clone {repo_url} myrepo")
     
     history_file = "myrepo/history.json"
@@ -100,7 +113,6 @@ if clips:
     with open(history_file, "w") as f: f.write(json.dumps(history))
     os.system(f"cp {final_video} myrepo/")
 
-    # Website HTML
     html = """<!DOCTYPE html><html><head><title>🇺🇸 USA AI Studio</title><meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body { font-family: sans-serif; background: #0f0f0f; color: #fff; margin: 0; padding: 20px; text-align: center; }
