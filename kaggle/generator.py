@@ -6,12 +6,16 @@ import requests
 import torch
 from datetime import datetime
 
+# GitHub will replace these placeholders before sending to Kaggle
+GEMINI_API_KEY = "PLACEHOLDER_GEMINI"
+GH_PAT = "PLACEHOLDER_GH_PAT"
+GITHUB_REPO = "PLACEHOLDER_GITHUB_REPO"
+
 # Install Required Libraries on Kaggle
 os.system("pip install moviepy==1.0.3 edge-tts diffusers transformers accelerate")
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 from diffusers import DiffusionPipeline
 from diffusers.utils import export_to_video
-import keys  # This brings our secrets injected by GitHub!
 
 today_date = datetime.now().strftime("%d-%b-%Y")
 day_of_year = datetime.now().timetuple().tm_yday
@@ -33,7 +37,7 @@ def generate_local_gpu_video(prompt, filename):
 
 # --- 2. GEMINI AI (Script Writer) ---
 def ask_gemini(prompt):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={keys.GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     headers = {"Content-Type": "application/json"}
     try:
@@ -97,7 +101,7 @@ results = [v for v in [v1, v2] if v]
 
 if results:
     print("☁️ Cloning GitHub Repo to push updates...")
-    repo_url = f"https://oauth2:{keys.GH_PAT}@[github.com/](https://github.com/){keys.GITHUB_REPO}.git"
+    repo_url = f"https://oauth2:{GH_PAT}@[github.com/](https://github.com/){GITHUB_REPO}.git"
     os.system(f"git clone {repo_url} myrepo")
     
     history_file = "myrepo/history.json"
@@ -126,9 +130,10 @@ if results:
         .cpy { background: #4285f4; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;}
     </style></head><body><h1>🇺🇸 Automatic AI Studio</h1>"""
 
-    for cat_name, cat_label in [("LONG", "🎬 Long Stories"), ("SHORT", "🐍 Snake Shorts")]:
+    for cat_name, cat_label in [("LONG", "🎬 Epic Stories"), ("SHORT", "🐍 Funny Snake & Inverse Reality")]:
         html += f"<h2>{cat_label}</h2><div class='grid'>"
         cat_history = [h for h in history if h['cat'] == cat_name]
+        if not cat_history: html += "<p style='color:#666;'>No videos yet...</p>"
         for h in cat_history:
             vid = h['id']
             html += f"""<div class="card"><b>📅 {h['date']}</b>
