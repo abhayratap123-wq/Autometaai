@@ -15,15 +15,18 @@ jobs:
       - name: Setup Kaggle CLI
         run: pip install kaggle
 
-      - name: Inject Secrets Safely & Run Kaggle GPU
+      - name: Run Kaggle GPU with Secrets
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          GITHUB_REPO: ${{ github.repository }}
         run: |
-          # Create secret file for Kaggle to use (Will not be saved to public repo)
-          echo "GEMINI_API_KEY = '${{ secrets.GEMINI_API_KEY }}'" > kaggle/keys.py
-          echo "GH_PAT = '${{ secrets.GH_PAT }}'" >> kaggle/keys.py
-          echo "GITHUB_REPO = '${{ github.repository }}'" >> kaggle/keys.py
+          # Inject secrets directly into generator.py before pushing to Kaggle
+          sed -i "s|PLACEHOLDER_GEMINI|$GEMINI_API_KEY|g" kaggle/generator.py
+          sed -i "s|PLACEHOLDER_GH_PAT|$GH_PAT|g" kaggle/generator.py
+          sed -i "s|PLACEHOLDER_GITHUB_REPO|$GITHUB_REPO|g" kaggle/generator.py
           
           # Push to Kaggle and run!
           kaggle kernels push -p ./kaggle
