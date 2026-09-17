@@ -38,20 +38,46 @@ def generate_local_gpu_video(prompt, filename):
         print(f"❌ GPU Generation Error: {e}")
         return False
 
+# --- YOUR ORIGINAL WORKING GEMINI API METHOD ---
 def ask_gemini(prompt):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    headers = {"Content-Type": "application/json"}
+    print("🧠 Contacting Gemini AI...")
+    url = "https://generativelanguage.googleapis.com/v1beta/interactions"
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": GEMINI_API_KEY
+    }
+    payload = {
+        "model": "gemini-3.6-flash",
+        "input": [
+            {
+                "type": "user_input",
+                "content": [{"type": "text", "text": prompt}]
+            }
+        ],
+        "store": False
+    }
+    
     try:
         res = requests.post(url, json=payload, headers=headers)
         data = res.json()
-        if "candidates" in data:
-            return data['candidates'][0]['content']['parts'][0]['text'].strip()
+        
+        text_output = ""
+        if data and "steps" in data:
+            for step in data["steps"]:
+                if step.get("type") == "model_output":
+                    for item in step.get("content", []):
+                        if item.get("type") == "text": 
+                            text_output += item.get("text", "")
+                            
+        if text_output:
+            print("✅ Gemini API Success!")
+            return text_output.strip()
         else:
-            print(f"⚠️ Gemini API Response Error: {data}")
+            print(f"❌ Gemini Error Response: {data}")
             return None
+            
     except Exception as e:
-        print(f"❌ Gemini Error: {e}")
+        print(f"❌ Gemini Connection Error: {e}")
         return None
 
 print("🔥 STARTING STABLE VIDEO GENERATION 🔥")
