@@ -1,0 +1,29 @@
+name: Kaggle GPU Video Engine
+
+on:
+  schedule:
+    - cron: '0 15 * * *' # 15:00 UTC = 8:30 PM IST
+  workflow_dispatch:
+
+jobs:
+  run-kaggle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Kaggle CLI
+        run: pip install kaggle
+
+      - name: Inject Secrets Safely & Run Kaggle GPU
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          # Create secret file for Kaggle to use (Will not be saved to public repo)
+          echo "GEMINI_API_KEY = '${{ secrets.GEMINI_API_KEY }}'" > kaggle/keys.py
+          echo "GH_PAT = '${{ secrets.GH_PAT }}'" >> kaggle/keys.py
+          echo "GITHUB_REPO = '${{ github.repository }}'" >> kaggle/keys.py
+          
+          # Push to Kaggle and run!
+          kaggle kernels push -p ./kaggle
