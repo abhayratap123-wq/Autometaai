@@ -3,9 +3,10 @@ import time
 import json
 import requests
 import torch
+import random
 from datetime import datetime
 
-# GitHub will automatically replace these placeholders when running!
+# --- SECRETS & KEYS ---
 GEMINI_API_KEY = "PLACEHOLDER_GEMINI"
 GH_PAT = "PLACEHOLDER_GH_PAT"
 GITHUB_REPO = "PLACEHOLDER_GITHUB_REPO"
@@ -18,27 +19,29 @@ from diffusers import DiffusionPipeline
 from diffusers.utils import export_to_video
 
 today_date = datetime.now().strftime("%d-%b-%Y")
+day_of_year = datetime.now().timetuple().tm_yday
 
-print("🚀 Loading AI Video Model into T4 GPU...")
+print("🚀 Loading High-Quality 3D AI Model into T4 GPU...")
 try:
     pipe = DiffusionPipeline.from_pretrained("damo-vilab/text-to-video-ms-1.7b", torch_dtype=torch.float16)
     pipe.enable_model_cpu_offload()
-    print("✅ Model Loaded Successfully!")
+    print("✅ 3D Model Loaded Successfully!")
 except Exception as e:
     print(f"❌ Model Load Error: {e}")
     exit(1)
 
 def generate_local_gpu_video(prompt, filename):
     try:
-        print(f"🎥 Generating (GPU): {prompt}")
-        video_frames = pipe(prompt, num_frames=16).frames[0]
+        # Enhancing prompt for 3D Pixar Animation Quality
+        hd_prompt = f"3d pixar style animation, vibrant colors, highly detailed, cinematic lighting, {prompt}"
+        print(f"🎥 Generating 3D Video (GPU): {hd_prompt}")
+        video_frames = pipe(hd_prompt, num_frames=16).frames[0]
         export_to_video(video_frames, filename, fps=8)
         return True
     except Exception as e:
         print(f"❌ GPU Generation Error: {e}")
         return False
 
-# --- YOUR ORIGINAL WORKING GEMINI API METHOD ---
 def ask_gemini(prompt):
     print("🧠 Contacting Gemini AI...")
     url = "https://generativelanguage.googleapis.com/v1beta/interactions"
@@ -48,43 +51,45 @@ def ask_gemini(prompt):
     }
     payload = {
         "model": "gemini-3.6-flash",
-        "input": [
-            {
-                "type": "user_input",
-                "content": [{"type": "text", "text": prompt}]
-            }
-        ],
+        "input": [{"type": "user_input", "content": [{"type": "text", "text": prompt}]}],
         "store": False
     }
-    
     try:
         res = requests.post(url, json=payload, headers=headers)
         data = res.json()
-        
         text_output = ""
         if data and "steps" in data:
             for step in data["steps"]:
                 if step.get("type") == "model_output":
                     for item in step.get("content", []):
-                        if item.get("type") == "text": 
-                            text_output += item.get("text", "")
-                            
-        if text_output:
-            print("✅ Gemini API Success!")
-            return text_output.strip()
-        else:
-            print(f"❌ Gemini Error Response: {data}")
-            return None
-            
+                        if item.get("type") == "text": text_output += item.get("text", "")
+        return text_output.strip() if text_output else None
     except Exception as e:
-        print(f"❌ Gemini Connection Error: {e}")
+        print(f"❌ Gemini Error: {e}")
         return None
 
-print("🔥 STARTING STABLE VIDEO GENERATION 🔥")
+print("🔥 STARTING 3D USA VIDEO GENERATION 🔥")
 vid_num = int(time.time())
 
-topic = "Hilarious snake encounters in modern USA houses"
-prompt = f"Write a 70-word USA English funny YouTube Shorts script about: {topic}. Output STRICTLY as JSON array of 3 objects: 1. 'narration': English line. 2. 'visual': 3-word visual prompt. RAW JSON ONLY."
+# Rotate topics daily: Epic 3D Stories & Inverse Reality Snake Shorts
+if day_of_year % 2 == 0:
+    cat = "LONG"
+    topics = [
+        "A 3D animated magical forest camping adventure with cute animals and glowing crystals",
+        "A touching 3D story about a poor boy working hard and transforming his life in a beautiful USA town",
+        "A magical 3D journey through a hidden valley filled with exotic colorful birds and waterfalls"
+    ]
+    topic = random.choice(topics)
+    prompt = f"Write a 120-word USA English 3D animated movie script about: {topic}. Output STRICTLY as JSON array of 6 objects: 1. 'narration': English line. 2. 'visual': 3-word 3D animation prompt. RAW JSON ONLY."
+else:
+    cat = "SHORT"
+    topics = [
+        "Funny 3D animated inverse reality where cartoon snakes run a modern hospital for humans",
+        "Hilarious 3D animated cartoon snakes getting scared of a crying human in a deep jungle hole",
+        "Crazy 3D animated cartoon snakes with mustaches going to school with little backpacks"
+    ]
+    topic = random.choice(topics)
+    prompt = f"Write a 60-word USA English funny 3D cartoon shorts script about: {topic}. Output STRICTLY as JSON array of 3 objects: 1. 'narration': English line. 2. 'visual': 3-word 3D visual prompt. RAW JSON ONLY."
 
 script_txt = ask_gemini(prompt)
 if not script_txt:
@@ -96,17 +101,17 @@ try:
     elif script_txt.startswith("```"): script_txt = script_txt[3:-3]
     scenes = json.loads(script_txt.strip())
 except Exception as e:
-    print(f"❌ JSON Parse Error: {e}\nRaw text was: {script_txt}")
+    print(f"❌ JSON Parse Error: {e}\nRaw text: {script_txt}")
     exit(1)
 
-meta_raw = ask_gemini(f"Generate for '{topic}': 1. Catchy Title (<60 chars) 2. 2-line Description 3. 5 tags. Format: TITLE|DESC|TAGS")
+meta_raw = ask_gemini(f"Generate for '{topic}': 1. Catchy YouTube Title (<60 chars) 2. 2-line Description 3. 5 comma-separated tags. Format: TITLE|DESC|TAGS")
 if meta_raw:
     meta = meta_raw.split('|')
-    title = meta[0].strip() if len(meta) > 0 else "Must watch!"
-    desc = meta[1].strip() if len(meta) > 1 else "Funny shorts"
-    tags = meta[2].strip() if len(meta) > 2 else "shorts"
+    title = meta[0].strip() if len(meta) > 0 else "Amazing 3D Animation! 🌟"
+    desc = meta[1].strip() if len(meta) > 1 else "Must watch 3D animated viral short! #shorts"
+    tags = meta[2].strip() if len(meta) > 2 else "3d, animation, viral, usa, shorts"
 else:
-    title, desc, tags = "Crazy Snake! 🐍", "Must watch! #shorts", "snake, funny"
+    title, desc, tags = "Amazing 3D Adventure! 🌟", "Must watch! #shorts", "3d, animation, viral"
 
 clips = []
 for i, scene in enumerate(scenes):
@@ -118,7 +123,7 @@ for i, scene in enumerate(scenes):
         clips.append(clip_file)
 
 if clips:
-    final_video = f"SHORT_USA_{vid_num}.mp4"
+    final_video = f"3D_{cat}_USA_{vid_num}.mp4"
     clip_objs = [VideoFileClip(c) for c in clips]
     concatenate_videoclips(clip_objs).write_videofile(final_video, fps=24, codec="libx264", logger=None)
     
@@ -133,48 +138,68 @@ if clips:
             with open(history_file, "r") as f: history = json.loads(f.read())
         except: pass
         
-    new_entry = {"file": final_video, "title": title, "desc": desc, "tags": tags, "date": today_date, "id": str(vid_num), "cat": "SHORT", "status_msg": "🟢 100% Complete", "status_type": "done"}
+    new_entry = {"file": final_video, "title": title, "desc": desc, "tags": tags, "date": today_date, "id": str(vid_num), "cat": cat, "status_msg": "🟢 3D Masterpiece Ready", "status_type": "done"}
     history.insert(0, new_entry)
     
     with open(history_file, "w") as f: f.write(json.dumps(history))
     os.system(f"cp {final_video} myrepo/")
 
-    html = """<!DOCTYPE html><html><head><title>🇺🇸 USA AI Studio</title><meta name="viewport" content="width=device-width, initial-scale=1">
+    # Professional Website UI with Dropdown Title/Desc/Tags & Manual Play
+    html = """<!DOCTYPE html><html lang="en"><head><title>🇺🇸 USA 3D AI Studio</title><meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: sans-serif; background: #0f0f0f; color: #fff; margin: 0; padding: 20px; text-align: center; }
-        h2 { color: #00e676; margin-top: 30px; border-bottom: 1px solid #333; padding-bottom: 5px;}
+        body { font-family: sans-serif; background: #0b0b0b; color: #fff; margin: 0; padding: 20px; text-align: center; }
+        h1 { color: #ffeb3b; font-size: 24px; margin-bottom: 5px; }
+        p { color: #aaa; font-size: 14px; margin-top: 0; }
+        h2 { color: #00e676; margin-top: 30px; border-bottom: 2px solid #222; padding-bottom: 8px; font-size: 18px; text-align: left; }
         .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
-        .card { background: #1e1e1e; padding: 15px; border-radius: 10px; width: 320px; text-align: left; }
-        video { width: 100%; border-radius: 8px; margin: 10px 0; }
-        .btn { background: #00e676; color: #000; display: block; padding: 10px; text-align: center; text-decoration: none; font-weight: bold; border-radius: 5px; margin-bottom: 5px; cursor: pointer; border: none; width: 100%; }
-        .btn-dark { background: #333; color: #fff; }
-        .box { display: none; background: #111; padding: 10px; border-radius: 5px; margin-top: 5px; font-size: 13px; }
-        .row { display: flex; justify-content: space-between; background: #222; margin-bottom: 5px; padding: 5px; border-radius: 3px; }
-        .txt { flex: 1; overflow-x: auto; white-space: nowrap; margin-right: 10px; color: #ccc;}
-        .cpy { background: #4285f4; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;}
-    </style></head><body><h1>🇺🇸 Automatic AI Studio</h1><h2>🐍 Funny Snake Shorts</h2><div class='grid'>"""
+        .card { background: #181818; padding: 15px; border-radius: 12px; width: 320px; border: 1px solid #333; text-align: left; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .date { font-size: 11px; color: #00e676; margin-bottom: 8px; font-weight: bold; }
+        video { width: 100%; border-radius: 8px; background: #000; margin-bottom: 10px; }
+        .btn { background: #00e676; color: #000; display: block; padding: 10px; text-align: center; text-decoration: none; font-weight: bold; border-radius: 6px; margin-bottom: 8px; cursor: pointer; border: none; width: 100%; box-sizing: border-box; }
+        .btn-dark { background: #2a2a2a; color: #fff; font-size: 13px; }
+        .box { display: none; background: #111; padding: 10px; border-radius: 8px; margin-top: 8px; font-size: 12px; border: 1px solid #333; }
+        .row { display: flex; align-items: center; background: #1a1a1a; margin-bottom: 6px; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
+        .txt { flex: 1; padding: 8px; color: #ddd; overflow-x: auto; white-space: nowrap; font-family: monospace; }
+        .cpy { background: #4285f4; color: white; border: none; padding: 8px 12px; cursor: pointer; font-weight: bold; font-size: 11px; }
+        .cpy:hover { background: #3367d6; }
+    </style></head>
+    <body>
+        <h1>🇺🇸 USA 3D Animation Studio</h1>
+        <p>Fully Automated Daily AI 3D Videos & Shorts</p>
+    """
 
-    for h in history:
-        vid = h['id']
-        html += f"""<div class="card"><b>📅 {h['date']}</b>
-        <video src="{h['file']}" controls></video>
-        <a href="{h['file']}" download class="btn">⬇️ Download</a>
-        <button class="btn btn-dark" onclick="let b=document.getElementById('b-{vid}'); b.style.display = b.style.display==='block' ? 'none' : 'block'">📝 Title, Desc & Tags</button>
-        <div class="box" id="b-{vid}">
-            <div class="row"><div class="txt" id="t-{vid}">{h['title']}</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('t-{vid}').innerText)">Copy</button></div>
-            <div class="row"><div class="txt" id="d-{vid}">{h['desc']}</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('d-{vid}').innerText)">Copy</button></div>
-            <div class="row"><div class="txt" id="g-{vid}">{h['tags']}</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('g-{vid}').innerText)">Copy</button></div>
-        </div></div>"""
+    for cat_key, cat_name in [("LONG", "🎬 Epic 3D Stories (Long)"), ("SHORT", "🐍 3D Inverse Reality & Snake Shorts")]:
+        html += f"<h2>{cat_name}</h2><div class='grid'>"
+        cat_items = [h for h in history if h.get('cat') == cat_key]
+        if not cat_items:
+            html += "<p style='color:#555; font-size:13px;'>Generating next batch soon...</p>"
+        for h in cat_items:
+            vid = h['id']
+            html += f"""<div class="card">
+                <div class="date">📅 {h['date']}</div>
+                <video src="{h['file']}" controls preload="none"></video>
+                <a href="{h['file']}" download class="btn">⬇️ Download Video</a>
+                <button class="btn btn-dark" onclick="let b=document.getElementById('b-{vid}'); b.style.display = b.style.display==='block' ? 'none' : 'block'">📝 Title, Desc & Tags</button>
+                <div class="box" id="b-{vid}">
+                    <div style="font-size:10px; color:#888; margin-bottom:2px;">TITLE:</div>
+                    <div class="row"><div class="txt" id="t-{vid}">{h['title']}</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('t-{vid}').innerText)">COPY</button></div>
+                    <div style="font-size:10px; color:#888; margin-bottom:2px;">DESCRIPTION:</div>
+                    <div class="row"><div class="txt" id="d-{vid}">{h['desc']}</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('d-{vid}').innerText)">COPY</button></div>
+                    <div style="font-size:10px; color:#888; margin-bottom:2px;">TAGS:</div>
+                    <div class="row"><div class="txt" id="g-{vid}">{h['tags']}</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('g-{vid}').innerText)">COPY</button></div>
+                </div>
+            </div>"""
+        html += "</div>"
 
-    html += "</div></body></html>"
+    html += "</body></html>"
     with open("myrepo/index.html", "w") as f: f.write(html)
     
     os.chdir("myrepo")
     os.system('git config user.name "Kaggle GPU Bot"')
     os.system('git config user.email "bot@kaggle.com"')
     os.system('git add .')
-    os.system('git commit -m "Auto Update: Video Ready 🚀"')
+    os.system('git commit -m "Auto Update: 3D Masterpiece Ready 🚀"')
     os.system('git push origin main || git push origin master')
-    print("✅ SUCCESS! Video and website pushed to GitHub.")
+    print("✅ SUCCESS! 3D Video and updated website pushed to GitHub.")
 else:
     print("❌ No clips were generated.")
