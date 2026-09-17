@@ -15,7 +15,7 @@ jobs:
       - name: Setup Kaggle CLI
         run: pip install kaggle
 
-      - name: Run Kaggle GPU with Secrets
+      - name: Inject Secrets & Run Kaggle GPU
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
@@ -23,10 +23,10 @@ jobs:
           GH_PAT: ${{ secrets.GH_PAT }}
           GITHUB_REPO: ${{ github.repository }}
         run: |
-          # Inject secrets directly into generator.py before pushing to Kaggle
+          # Safely replace placeholders with GitHub Secrets
           sed -i "s|PLACEHOLDER_GEMINI|$GEMINI_API_KEY|g" kaggle/generator.py
           sed -i "s|PLACEHOLDER_GH_PAT|$GH_PAT|g" kaggle/generator.py
           sed -i "s|PLACEHOLDER_GITHUB_REPO|$GITHUB_REPO|g" kaggle/generator.py
           
-          # Push to Kaggle and run!
+          # Push to Kaggle and run
           kaggle kernels push -p ./kaggle
