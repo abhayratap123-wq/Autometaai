@@ -11,9 +11,9 @@ GEMINI_API_KEY = "PLACEHOLDER_GEMINI"
 GH_PAT = "PLACEHOLDER_GH_PAT"
 GITHUB_REPO = "PLACEHOLDER_GITHUB_REPO"
 
-print("📦 Installing latest dependencies for Wan 2.1 and fixing torchao error...")
-# Specify diffusers version to avoid the torchao issue, and install torchao explicitly if needed
-os.system("pip install -q moviepy==1.0.3 edge-tts diffusers==0.32.2 transformers accelerate")
+print("📦 Installing locked dependencies to prevent any conflicts...")
+# Pinned transformers==4.44.2 to fix the FLAX_WEIGHTS_NAME error permanently
+os.system("pip install -q moviepy==1.0.3 edge-tts diffusers==0.32.2 transformers==4.44.2 accelerate")
 
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 from diffusers import DiffusionPipeline
