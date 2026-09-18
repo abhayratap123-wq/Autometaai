@@ -4,6 +4,7 @@ import json
 import requests
 import torch
 import random
+import shlex  # 👈 New import to fix the edge-tts text error!
 from datetime import datetime
 
 # GitHub will automatically replace these placeholders when running!
@@ -23,7 +24,6 @@ day_of_year = datetime.now().timetuple().tm_yday
 
 print("🚀 Loading CogVideoX-2B (Premium 3D AI Model) into T4 GPU...")
 try:
-    # CogVideoX-2B generates incredibly high quality, real 3D videos!
     pipe = CogVideoXPipeline.from_pretrained("THUDM/CogVideoX-2b", torch_dtype=torch.float16)
     pipe.enable_model_cpu_offload() 
     pipe.vae.enable_slicing()
@@ -35,11 +35,9 @@ except Exception as e:
 
 def generate_local_gpu_video(prompt, filename):
     try:
-        # Prompt enhanced for Pixar Style 3D Animation
         hd_prompt = f"3d pixar style animation, vibrant colors, highly detailed, realistic textures, smooth cinematic motion, {prompt}"
         print(f"🎥 Generating 3D Video: {hd_prompt}")
         
-        # Generates a proper, longer scene (49 frames) for smooth playback
         video_frames = pipe(prompt=hd_prompt, num_frames=49, num_inference_steps=25).frames[0]
         export_to_video(video_frames, filename, fps=8)
         return True
@@ -84,7 +82,6 @@ if day_of_year % 2 == 0:
         "A magical 3D journey through a hidden valley filled with exotic colorful birds and waterfalls"
     ]
     topic = random.choice(topics)
-    # Ensuring short sentences so audio length matches video length perfectly
     prompt = f"Write a 90-word USA English 3D animated movie script about: {topic}. Output STRICTLY as JSON with 2 keys: 1. 'narration': The full English story text (Keep sentences very short). 2. 'visual': A 10-word description for a single, highly detailed 3D scene that represents the whole story. RAW JSON ONLY."
 else:
     cat = "SHORT"
@@ -120,13 +117,11 @@ else:
 
 raw_vid, aud_file, final_video = f"raw_{vid_num}.mp4", f"aud_{vid_num}.mp3", f"{cat}_USA_{vid_num}.mp4"
 
-# Generate Audio Voiceover
-os.system(f'edge-tts --voice "en-US-ChristopherNeural" --text "{scene_data["narration"]}" --write-media {aud_file}')
+# 🚀 The FIX: Use shlex.quote to safely pass the text to the Linux command line!
+safe_text = shlex.quote(scene_data["narration"])
+os.system(f'edge-tts --voice "en-US-ChristopherNeural" --text {safe_text} --write-media {aud_file}')
 
-# Generate Video and Combine (THE LOOPING BUG FIX)
 if generate_local_gpu_video(scene_data["visual"], raw_vid):
-    # This FFmpeg command uses 'tpad' to beautifully freeze the last frame of the video instead of looping back!
-    # No more jumping or glitching!
     cmd = f'ffmpeg -y -i "{raw_vid}" -i "{aud_file}" -map 0:v:0 -map 1:a:0 -vf "tpad=stop_mode=clone:stop_duration=20" -c:v libx264 -c:a aac -shortest -loglevel error "{final_video}"'
     os.system(cmd)
     
@@ -147,7 +142,6 @@ if generate_local_gpu_video(scene_data["visual"], raw_vid):
     with open(history_file, "w") as f: f.write(json.dumps(history))
     os.system(f"cp {final_video} myrepo/")
 
-    # Beautiful UI for the Website
     html = """<!DOCTYPE html><html lang="en"><head><title>🇺🇸 USA 3D AI Studio</title><meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body { font-family: sans-serif; background: #0b0b0b; color: #fff; margin: 0; padding: 20px; text-align: center; }
