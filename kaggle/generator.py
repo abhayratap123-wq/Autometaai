@@ -6,13 +6,14 @@ import torch
 import random
 from datetime import datetime
 
-# --- SECRETS & KEYS ---
+# GitHub will automatically replace these placeholders when running!
 GEMINI_API_KEY = "PLACEHOLDER_GEMINI"
 GH_PAT = "PLACEHOLDER_GH_PAT"
 GITHUB_REPO = "PLACEHOLDER_GITHUB_REPO"
 
-print("📦 Installing dependencies...")
-os.system("pip install -q moviepy==1.0.3 edge-tts diffusers transformers accelerate")
+print("📦 Installing latest dependencies for Wan 2.1...")
+# Installed latest diffusers directly from GitHub to support Wan 2.1
+os.system("pip install -q git+https://github.com/huggingface/diffusers.git transformers accelerate moviepy==1.0.3 edge-tts")
 
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 from diffusers import DiffusionPipeline
@@ -21,22 +22,25 @@ from diffusers.utils import export_to_video
 today_date = datetime.now().strftime("%d-%b-%Y")
 day_of_year = datetime.now().timetuple().tm_yday
 
-print("🚀 Loading High-Quality 3D AI Model into T4 GPU...")
+print("🚀 Loading WAN 2.1 (1.3B) 3D AI Model into T4 GPU...")
 try:
-    pipe = DiffusionPipeline.from_pretrained("damo-vilab/text-to-video-ms-1.7b", torch_dtype=torch.float16)
+    # Using the powerful Wan 2.1 Model requested by you!
+    pipe = DiffusionPipeline.from_pretrained("Wan-AI/Wan2.1-T2V-1.3B", torch_dtype=torch.float16)
     pipe.enable_model_cpu_offload()
-    print("✅ 3D Model Loaded Successfully!")
+    print("✅ Wan 2.1 3D Model Loaded Successfully!")
 except Exception as e:
     print(f"❌ Model Load Error: {e}")
     exit(1)
 
 def generate_local_gpu_video(prompt, filename):
     try:
-        # Enhancing prompt for 3D Pixar Animation Quality
-        hd_prompt = f"3d pixar style animation, vibrant colors, highly detailed, cinematic lighting, {prompt}"
-        print(f"🎥 Generating 3D Video (GPU): {hd_prompt}")
-        video_frames = pipe(hd_prompt, num_frames=16).frames[0]
-        export_to_video(video_frames, filename, fps=8)
+        # Pushing the prompt to absolute 3D Pixar limits
+        hd_prompt = f"3d pixar style animation, masterpiece, best quality, highly detailed, vibrant colors, smooth motion, {prompt}"
+        print(f"🎥 Generating Wan 2.1 3D Video: {hd_prompt}")
+        
+        # Generating a smooth continuous video (50 steps for best quality)
+        video_frames = pipe(hd_prompt, num_inference_steps=50).frames[0]
+        export_to_video(video_frames, filename, fps=16)
         return True
     except Exception as e:
         print(f"❌ GPU Generation Error: {e}")
@@ -68,10 +72,10 @@ def ask_gemini(prompt):
         print(f"❌ Gemini Error: {e}")
         return None
 
-print("🔥 STARTING 3D USA VIDEO GENERATION 🔥")
+print("🔥 STARTING WAN 2.1 USA VIDEO GENERATION 🔥")
 vid_num = int(time.time())
 
-# Rotate topics daily: Epic 3D Stories & Inverse Reality Snake Shorts
+# Rotate topics daily
 if day_of_year % 2 == 0:
     cat = "LONG"
     topics = [
@@ -80,16 +84,17 @@ if day_of_year % 2 == 0:
         "A magical 3D journey through a hidden valley filled with exotic colorful birds and waterfalls"
     ]
     topic = random.choice(topics)
-    prompt = f"Write a 120-word USA English 3D animated movie script about: {topic}. Output STRICTLY as JSON array of 6 objects: 1. 'narration': English line. 2. 'visual': 3-word 3D animation prompt. RAW JSON ONLY."
+    # We ask for a full continuous story narration, and ONE strong 3D visual to loop seamlessly
+    prompt = f"Write a 120-word USA English 3D animated movie script about: {topic}. Output STRICTLY as JSON with 2 keys: 1. 'narration': The full English story text. 2. 'visual': A 10-word description for a single, highly detailed 3D scene that represents the whole story. RAW JSON ONLY."
 else:
     cat = "SHORT"
     topics = [
-        "Funny 3D animated inverse reality where cartoon snakes run a modern hospital for humans",
+        "Funny 3D animated inverse reality where a human bites a snake in bed and the snake screams for a hospital",
         "Hilarious 3D animated cartoon snakes getting scared of a crying human in a deep jungle hole",
         "Crazy 3D animated cartoon snakes with mustaches going to school with little backpacks"
     ]
     topic = random.choice(topics)
-    prompt = f"Write a 60-word USA English funny 3D cartoon shorts script about: {topic}. Output STRICTLY as JSON array of 3 objects: 1. 'narration': English line. 2. 'visual': 3-word 3D visual prompt. RAW JSON ONLY."
+    prompt = f"Write a 60-word USA English funny 3D cartoon shorts script about: {topic}. Output STRICTLY as JSON with 2 keys: 1. 'narration': The full English script. 2. 'visual': A 10-word description for a single, highly detailed 3D scene. RAW JSON ONLY."
 
 script_txt = ask_gemini(prompt)
 if not script_txt:
@@ -99,7 +104,7 @@ if not script_txt:
 try:
     if script_txt.startswith("```json"): script_txt = script_txt[7:-3]
     elif script_txt.startswith("```"): script_txt = script_txt[3:-3]
-    scenes = json.loads(script_txt.strip())
+    scene_data = json.loads(script_txt.strip())
 except Exception as e:
     print(f"❌ JSON Parse Error: {e}\nRaw text: {script_txt}")
     exit(1)
@@ -113,19 +118,16 @@ if meta_raw:
 else:
     title, desc, tags = "Amazing 3D Adventure! 🌟", "Must watch! #shorts", "3d, animation, viral"
 
-clips = []
-for i, scene in enumerate(scenes):
-    raw_vid, aud_file, clip_file = f"raw_{vid_num}_{i}.mp4", f"aud_{vid_num}_{i}.mp3", f"clip_{vid_num}_{i}.mp4"
-    os.system(f'edge-tts --voice "en-US-ChristopherNeural" --text "{scene["narration"]}" --write-media {aud_file}')
-    
-    if generate_local_gpu_video(scene["visual"], raw_vid):
-        os.system(f'ffmpeg -y -stream_loop -1 -i "{raw_vid}" -i "{aud_file}" -map 0:v:0 -map 1:a:0 -c:v libx264 -c:a aac -shortest "{clip_file}" -loglevel error')
-        clips.append(clip_file)
+# File names
+raw_vid, aud_file, final_video = f"raw_{vid_num}.mp4", f"aud_{vid_num}.mp3", f"{cat}_USA_{vid_num}.mp4"
 
-if clips:
-    final_video = f"3D_{cat}_USA_{vid_num}.mp4"
-    clip_objs = [VideoFileClip(c) for c in clips]
-    concatenate_videoclips(clip_objs).write_videofile(final_video, fps=24, codec="libx264", logger=None)
+# 1. Generate Voiceover
+os.system(f'edge-tts --voice "en-US-ChristopherNeural" --text "{scene_data["narration"]}" --write-media {aud_file}')
+
+# 2. Generate Single High-Quality Continuous Scene
+if generate_local_gpu_video(scene_data["visual"], raw_vid):
+    # Loop the high-quality scene for the exact duration of the audio, so it doesn't jump or glitch!
+    os.system(f'ffmpeg -y -stream_loop -1 -i "{raw_vid}" -i "{aud_file}" -map 0:v:0 -map 1:a:0 -c:v libx264 -c:a aac -shortest "{final_video}" -loglevel error')
     
     print("☁️ Cloning GitHub Repo & Pushing Files...")
     repo_url = f"https://oauth2:{GH_PAT}@github.com/{GITHUB_REPO}.git"
@@ -138,13 +140,13 @@ if clips:
             with open(history_file, "r") as f: history = json.loads(f.read())
         except: pass
         
-    new_entry = {"file": final_video, "title": title, "desc": desc, "tags": tags, "date": today_date, "id": str(vid_num), "cat": cat, "status_msg": "🟢 3D Masterpiece Ready", "status_type": "done"}
+    new_entry = {"file": final_video, "title": title, "desc": desc, "tags": tags, "date": today_date, "id": str(vid_num), "cat": cat, "status_msg": "🟢 3D Wan Masterpiece", "status_type": "done"}
     history.insert(0, new_entry)
     
     with open(history_file, "w") as f: f.write(json.dumps(history))
     os.system(f"cp {final_video} myrepo/")
 
-    # Professional Website UI with Dropdown Title/Desc/Tags & Manual Play
+    # Professional Website UI with No Auto-Play and Dropdown Info
     html = """<!DOCTYPE html><html lang="en"><head><title>🇺🇸 USA 3D AI Studio</title><meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body { font-family: sans-serif; background: #0b0b0b; color: #fff; margin: 0; padding: 20px; text-align: center; }
@@ -154,7 +156,7 @@ if clips:
         .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
         .card { background: #181818; padding: 15px; border-radius: 12px; width: 320px; border: 1px solid #333; text-align: left; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         .date { font-size: 11px; color: #00e676; margin-bottom: 8px; font-weight: bold; }
-        video { width: 100%; border-radius: 8px; background: #000; margin-bottom: 10px; }
+        video { width: 100%; border-radius: 8px; background: #000; margin-bottom: 10px; cursor: pointer; }
         .btn { background: #00e676; color: #000; display: block; padding: 10px; text-align: center; text-decoration: none; font-weight: bold; border-radius: 6px; margin-bottom: 8px; cursor: pointer; border: none; width: 100%; box-sizing: border-box; }
         .btn-dark { background: #2a2a2a; color: #fff; font-size: 13px; }
         .box { display: none; background: #111; padding: 10px; border-radius: 8px; margin-top: 8px; font-size: 12px; border: 1px solid #333; }
@@ -165,7 +167,7 @@ if clips:
     </style></head>
     <body>
         <h1>🇺🇸 USA 3D Animation Studio</h1>
-        <p>Fully Automated Daily AI 3D Videos & Shorts</p>
+        <p>Fully Automated Daily AI 3D Videos Powered by Wan 2.1</p>
     """
 
     for cat_key, cat_name in [("LONG", "🎬 Epic 3D Stories (Long)"), ("SHORT", "🐍 3D Inverse Reality & Snake Shorts")]:
@@ -175,9 +177,10 @@ if clips:
             html += "<p style='color:#555; font-size:13px;'>Generating next batch soon...</p>"
         for h in cat_items:
             vid = h['id']
+            # preload="none" ensures it doesn't auto-run or suck data. It only plays when clicked!
             html += f"""<div class="card">
                 <div class="date">📅 {h['date']}</div>
-                <video src="{h['file']}" controls preload="none"></video>
+                <video src="{h['file']}" controls preload="none" poster=""></video>
                 <a href="{h['file']}" download class="btn">⬇️ Download Video</a>
                 <button class="btn btn-dark" onclick="let b=document.getElementById('b-{vid}'); b.style.display = b.style.display==='block' ? 'none' : 'block'">📝 Title, Desc & Tags</button>
                 <div class="box" id="b-{vid}">
@@ -198,8 +201,8 @@ if clips:
     os.system('git config user.name "Kaggle GPU Bot"')
     os.system('git config user.email "bot@kaggle.com"')
     os.system('git add .')
-    os.system('git commit -m "Auto Update: 3D Masterpiece Ready 🚀"')
+    os.system('git commit -m "Auto Update: Wan 2.1 3D Masterpiece Ready 🚀"')
     os.system('git push origin main || git push origin master')
-    print("✅ SUCCESS! 3D Video and updated website pushed to GitHub.")
+    print("✅ SUCCESS! Wan 2.1 3D Video and updated website pushed to GitHub.")
 else:
     print("❌ No clips were generated.")
