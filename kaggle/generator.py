@@ -4,7 +4,7 @@ import json
 import requests
 import torch
 import random
-import shlex  # 👈 New import to fix the edge-tts text error!
+import shlex
 from datetime import datetime
 
 # GitHub will automatically replace these placeholders when running!
@@ -38,6 +38,7 @@ def generate_local_gpu_video(prompt, filename):
         hd_prompt = f"3d pixar style animation, vibrant colors, highly detailed, realistic textures, smooth cinematic motion, {prompt}"
         print(f"🎥 Generating 3D Video: {hd_prompt}")
         
+        # 49 frames at 8fps gives ~6 seconds of high quality video per scene.
         video_frames = pipe(prompt=hd_prompt, num_frames=49, num_inference_steps=25).frames[0]
         export_to_video(video_frames, filename, fps=8)
         return True
@@ -74,26 +75,45 @@ def ask_gemini(prompt):
 print("🔥 STARTING ULTIMATE USA VIDEO GENERATION 🔥")
 vid_num = int(time.time())
 
-if day_of_year % 2 == 0:
-    cat = "LONG"
-    topics = [
-        "A 3D animated magical forest camping adventure with cute animals and glowing crystals",
-        "A touching 3D story about a poor boy working hard and transforming his life in a beautiful USA town",
-        "A magical 3D journey through a hidden valley filled with exotic colorful birds and waterfalls"
-    ]
-    topic = random.choice(topics)
-    prompt = f"Write a 90-word USA English 3D animated movie script about: {topic}. Output STRICTLY as JSON with 2 keys: 1. 'narration': The full English story text (Keep sentences very short). 2. 'visual': A 10-word description for a single, highly detailed 3D scene that represents the whole story. RAW JSON ONLY."
-else:
-    cat = "SHORT"
-    topics = [
-        "Funny 3D animated inverse reality where a human bites a snake in bed and the snake screams for a hospital",
-        "Hilarious 3D animated cartoon snakes getting scared of a crying human in a deep jungle hole",
-        "Funny 3D animated inverse reality where snakes drink tea at a stall and get scared of a human running towards them"
-    ]
-    topic = random.choice(topics)
-    prompt = f"Write a 40-word USA English funny 3D cartoon shorts script about: {topic}. Output STRICTLY as JSON with 2 keys: 1. 'narration': The full English script (Keep sentences short and funny). 2. 'visual': A 10-word description for a single, highly detailed 3D scene. RAW JSON ONLY."
+# THE USER'S MASTER PROMPT
+master_prompt = '''You are an AUTOMATIC YouTube Shorts Funny Snake Video Creator.
 
-script_txt = ask_gemini(prompt)
+I WILL DO NOTHING.
+Do not ask me for a story.
+Do not ask me for an image.
+Do not ask me for characters.
+Do not ask me for voices.
+Do not ask me for a topic.
+
+YOU MUST AUTOMATICALLY CREATE EVERYTHING.
+
+Create a completely original funny 3D animated video.
+Format: YouTube Shorts
+Language: USA English
+Style: High-quality funny 3D cartoon animation
+
+Every time I run this prompt, automatically invent a NEW funny story.
+Randomly choose a fresh concept yourself (e.g., Snakes open a restaurant, Snakes go to human school, Humans accidentally enter a snake world, The world suddenly turns upside down, etc.).
+
+YOU MUST AUTOMATICALLY assign suitable voices from this list:
+- en-US-ChristopherNeural (Deep, serious male)
+- en-US-EricNeural (Natural male)
+- en-US-GuyNeural (Friendly male)
+- en-US-JennyNeural (Natural female)
+- en-US-AriaNeural (Energetic female)
+- en-US-AnaNeural (Playful female child)
+
+Automatically divide the story into short scenes (3-4 scenes).
+
+Output STRICTLY as a JSON array of objects. Each object represents one scene.
+Each object MUST have:
+1. "voice": The EXACT name of the voice from the list above.
+2. "narration": The English dialogue/narration for this scene.
+3. "visual": A 10-word description for a highly detailed 3D Pixar style scene.
+
+RAW JSON ARRAY ONLY. NO MARKDOWN. NO EXTRA TEXT.'''
+
+script_txt = ask_gemini(master_prompt)
 if not script_txt:
     print("❌ Failed to get Gemini script.")
     exit(1)
@@ -101,29 +121,41 @@ if not script_txt:
 try:
     if script_txt.startswith("```json"): script_txt = script_txt[7:-3]
     elif script_txt.startswith("```"): script_txt = script_txt[3:-3]
-    scene_data = json.loads(script_txt.strip())
+    scenes = json.loads(script_txt.strip())
 except Exception as e:
     print(f"❌ JSON Parse Error: {e}\nRaw text: {script_txt}")
     exit(1)
 
-meta_raw = ask_gemini(f"Generate for '{topic}': 1. Catchy YouTube Title (<60 chars) 2. 2-line Description 3. 5 comma-separated tags. Format: TITLE|DESC|TAGS")
-if meta_raw:
+meta_raw = ask_gemini(f"Based on this script: {script_txt}. Generate: 1. Catchy YouTube Title (<60 chars) 2. 2-line Description 3. 5 comma-separated tags. Format: TITLE|DESC|TAGS")
+if meta_raw and '|' in meta_raw:
     meta = meta_raw.split('|')
-    title = meta[0].strip() if len(meta) > 0 else "Amazing 3D Animation! 🌟"
+    title = meta[0].strip()
     desc = meta[1].strip() if len(meta) > 1 else "Must watch 3D animated viral short! #shorts"
     tags = meta[2].strip() if len(meta) > 2 else "3d, animation, viral, usa, shorts"
 else:
     title, desc, tags = "Amazing 3D Adventure! 🌟", "Must watch! #shorts", "3d, animation, viral"
 
-raw_vid, aud_file, final_video = f"raw_{vid_num}.mp4", f"aud_{vid_num}.mp3", f"{cat}_USA_{vid_num}.mp4"
+clips = []
+for i, scene in enumerate(scenes):
+    raw_vid = f"raw_{vid_num}_{i}.mp4"
+    aud_file = f"aud_{vid_num}_{i}.mp3"
+    clip_file = f"clip_{vid_num}_{i}.mp4"
+    
+    # Use the specific voice chosen by AI for multiple characters!
+    voice = scene.get("voice", "en-US-ChristopherNeural")
+    safe_text = shlex.quote(scene["narration"])
+    os.system(f'edge-tts --voice "{voice}" --text {safe_text} --write-media {aud_file}')
+    
+    if generate_local_gpu_video(scene["visual"], raw_vid):
+        # Freeze last frame if audio is longer, trim if video is longer. PERFECT SYNC & NO LOOPING BUG.
+        cmd = f'ffmpeg -y -i "{raw_vid}" -i "{aud_file}" -map 0:v:0 -map 1:a:0 -vf "tpad=stop_mode=clone:stop_duration=20" -c:v libx264 -c:a aac -shortest -loglevel error "{clip_file}"'
+        os.system(cmd)
+        clips.append(clip_file)
 
-# 🚀 The FIX: Use shlex.quote to safely pass the text to the Linux command line!
-safe_text = shlex.quote(scene_data["narration"])
-os.system(f'edge-tts --voice "en-US-ChristopherNeural" --text {safe_text} --write-media {aud_file}')
-
-if generate_local_gpu_video(scene_data["visual"], raw_vid):
-    cmd = f'ffmpeg -y -i "{raw_vid}" -i "{aud_file}" -map 0:v:0 -map 1:a:0 -vf "tpad=stop_mode=clone:stop_duration=20" -c:v libx264 -c:a aac -shortest -loglevel error "{final_video}"'
-    os.system(cmd)
+if clips:
+    final_video = f"USA_3D_SHORT_{vid_num}.mp4"
+    clip_objs = [VideoFileClip(c) for c in clips]
+    concatenate_videoclips(clip_objs).write_videofile(final_video, fps=24, codec="libx264", logger=None)
     
     print("☁️ Cloning GitHub Repo & Pushing Files...")
     repo_url = f"https://oauth2:{GH_PAT}@github.com/{GITHUB_REPO}.git"
@@ -136,7 +168,7 @@ if generate_local_gpu_video(scene_data["visual"], raw_vid):
             with open(history_file, "r") as f: history = json.loads(f.read())
         except: pass
         
-    new_entry = {"file": final_video, "title": title, "desc": desc, "tags": tags, "date": today_date, "id": str(vid_num), "cat": cat, "status_msg": "🟢 HD 3D Masterpiece", "status_type": "done"}
+    new_entry = {"file": final_video, "title": title, "desc": desc, "tags": tags, "date": today_date, "id": str(vid_num), "cat": "SHORT", "status_msg": "🟢 HD 3D Masterpiece", "status_type": "done"}
     history.insert(0, new_entry)
     
     with open(history_file, "w") as f: f.write(json.dumps(history))
@@ -163,32 +195,26 @@ if generate_local_gpu_video(scene_data["visual"], raw_vid):
     <body>
         <h1>🇺🇸 USA 3D Animation Studio</h1>
         <p>High-Quality 3D Videos - Fully Automated</p>
-    """
+        <h2>🐍 3D Inverse Reality & Snake Shorts</h2><div class='grid'>"""
 
-    for cat_key, cat_name in [("LONG", "🎬 Epic 3D Stories (Long)"), ("SHORT", "🐍 3D Inverse Reality & Snake Shorts")]:
-        html += f"<h2>{cat_name}</h2><div class='grid'>"
-        cat_items = [h for h in history if h.get('cat') == cat_key]
-        if not cat_items:
-            html += "<p style='color:#555; font-size:13px;'>Generating next batch soon...</p>"
-        for h in cat_items:
-            vid = h['id']
-            html += f"""<div class="card">
-                <div class="date">📅 {h['date']}</div>
-                <video src="{h['file']}" controls preload="none" poster=""></video>
-                <a href="{h['file']}" download class="btn">⬇️ Download Video</a>
-                <button class="btn btn-dark" onclick="let b=document.getElementById('b-{vid}'); b.style.display = b.style.display==='block' ? 'none' : 'block'">📝 Title, Desc & Tags</button>
-                <div class="box" id="b-{vid}">
-                    <div style="font-size:10px; color:#888; margin-bottom:2px;">TITLE:</div>
-                    <div class="row"><div class="txt" id="t-{vid}">{h['title']}</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('t-{vid}').innerText)">COPY</button></div>
-                    <div style="font-size:10px; color:#888; margin-bottom:2px;">DESCRIPTION:</div>
-                    <div class="row"><div class="txt" id="d-{vid}">{h['desc']}</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('d-{vid}').innerText)">COPY</button></div>
-                    <div style="font-size:10px; color:#888; margin-bottom:2px;">TAGS:</div>
-                    <div class="row"><div class="txt" id="g-{vid}">{h['tags']}</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('g-{vid}').innerText)">COPY</button></div>
-                </div>
-            </div>"""
-        html += "</div>"
-
-    html += "</body></html>"
+    for h in history:
+        vid = h['id']
+        html += f"""<div class="card">
+            <div class="date">📅 {h['date']}</div>
+            <video src="{h['file']}" controls preload="none" poster=""></video>
+            <a href="{h['file']}" download class="btn">⬇️ Download Video</a>
+            <button class="btn btn-dark" onclick="let b=document.getElementById('b-{vid}'); b.style.display = b.style.display==='block' ? 'none' : 'block'">📝 Title, Desc & Tags</button>
+            <div class="box" id="b-{vid}">
+                <div style="font-size:10px; color:#888; margin-bottom:2px;">TITLE:</div>
+                <div class="row"><div class="txt" id="t-{vid}">{h['title']}</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('t-{vid}').innerText)">COPY</button></div>
+                <div style="font-size:10px; color:#888; margin-bottom:2px;">DESCRIPTION:</div>
+                <div class="row"><div class="txt" id="d-{vid}">{h['desc']}</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('d-{vid}').innerText)">COPY</button></div>
+                <div style="font-size:10px; color:#888; margin-bottom:2px;">TAGS:</div>
+                <div class="row"><div class="txt" id="g-{vid}">{h['tags']}</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('g-{vid}').innerText)">COPY</button></div>
+            </div>
+        </div>"""
+    
+    html += "</div></body></html>"
     with open("myrepo/index.html", "w") as f: f.write(html)
     
     os.chdir("myrepo")
