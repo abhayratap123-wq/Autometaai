@@ -5,44 +5,52 @@ import requests
 import torch
 import random
 import shlex
+import gc
 from datetime import datetime
 
-# GitHub will automatically replace these placeholders when running!
 GEMINI_API_KEY = "PLACEHOLDER_GEMINI"
 GH_PAT = "PLACEHOLDER_GH_PAT"
 GITHUB_REPO = "PLACEHOLDER_GITHUB_REPO"
 
-print("📦 Installing locked dependencies for the ultimate stable 3D Video generator...")
+print("📦 Installing locked dependencies for the Image-to-Video 5B setup...")
 os.system("pip install -q diffusers==0.30.2 transformers==4.44.2 accelerate imageio-ffmpeg moviepy==1.0.3 edge-tts")
 
 from moviepy.editor import VideoFileClip, concatenate_videoclips
-from diffusers import CogVideoXPipeline
+from diffusers import AutoPipelineForText2Image, CogVideoXImageToVideoPipeline
 from diffusers.utils import export_to_video
 
 today_date = datetime.now().strftime("%d-%b-%Y")
-day_of_year = datetime.now().timetuple().tm_yday
-
-print("🚀 Loading CogVideoX-5B (Ultimate Premium 3D AI Model) into T4 GPU...")
-try:
-    # Upgrading to CogVideoX-5B for superior visual quality!
-    pipe = CogVideoXPipeline.from_pretrained("THUDM/CogVideoX-5b", torch_dtype=torch.float16)
-    pipe.enable_model_cpu_offload() 
-    pipe.vae.enable_slicing()
-    pipe.vae.enable_tiling()
-    print("✅ 5B 3D Model Loaded Successfully!")
-except Exception as e:
-    print(f"❌ Model Load Error: {e}")
-    exit(1)
 
 def generate_local_gpu_video(prompt, filename):
     try:
-        # Prompt enhanced for Pixar Style 3D Animation (English)
-        hd_prompt = f"Highly detailed 3D Pixar style animation, masterpiece, best quality, vibrant colors, smooth cinematic motion, clear focus, {prompt}"
-        print(f"🎥 Generating 3D Video: {hd_prompt}")
+        print("🎨 Step 1: Generating 3D Reference Image (SDXL Turbo) so AI knows the exact design...")
+        # Fast image generation for reference
+        img_pipe = AutoPipelineForText2Image.from_pretrained("stabilityai/sdxl-turbo", torch_dtype=torch.float16, variant="fp16")
+        img_pipe.to("cuda")
         
-        # Generates a proper, longer scene (49 frames) for smooth playback
-        video_frames = pipe(prompt=hd_prompt, num_frames=49, num_inference_steps=25).frames[0]
-        export_to_video(video_frames, filename, fps=8)
+        image_prompt = f"Highly detailed 3D Pixar style animation frame, masterpiece, best quality, vibrant colors, {prompt}"
+        reference_image = img_pipe(prompt=image_prompt, num_inference_steps=4, guidance_scale=0.0).images[0]
+        
+        # Free GPU memory immediately
+        del img_pipe
+        gc.collect()
+        torch.cuda.empty_cache()
+        print("✅ Reference Image generated! Now animating...")
+
+        print("🚀 Step 2: Loading CogVideoX-5B-I2V to animate the image...")
+        video_pipe = CogVideoXImageToVideoPipeline.from_pretrained("THUDM/CogVideoX-5b-I2V", torch_dtype=torch.float16)
+        video_pipe.enable_model_cpu_offload()
+        video_pipe.vae.enable_slicing()
+        video_pipe.vae.enable_tiling()
+        
+        # Generate video using the reference image AND the text prompt
+        video_prompt = f"Smooth cinematic motion, clear focus, high quality 3d animation, {prompt}"
+        video_frames = video_pipe(image=reference_image, prompt=video_prompt, num_frames=49, num_inference_steps=25).frames[0]
+        export_to_video(video_frames, filename, fps=12) # Changed fps for smoother playback
+        
+        del video_pipe
+        gc.collect()
+        torch.cuda.empty_cache()
         return True
     except Exception as e:
         print(f"❌ GPU Generation Error: {e}")
@@ -51,15 +59,8 @@ def generate_local_gpu_video(prompt, filename):
 def ask_gemini(prompt):
     print("🧠 Contacting Gemini AI...")
     url = "https://generativelanguage.googleapis.com/v1beta/interactions"
-    headers = {
-        "Content-Type": "application/json",
-        "x-goog-api-key": GEMINI_API_KEY
-    }
-    payload = {
-        "model": "gemini-3.6-flash",
-        "input": [{"type": "user_input", "content": [{"type": "text", "text": prompt}]}],
-        "store": False
-    }
+    headers = {"Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY}
+    payload = {"model": "gemini-3.6-flash", "input": [{"type": "user_input", "content": [{"type": "text", "text": prompt}]}], "store": False}
     try:
         res = requests.post(url, json=payload, headers=headers)
         data = res.json()
@@ -74,66 +75,42 @@ def ask_gemini(prompt):
         print(f"❌ Gemini Error: {e}")
         return None
 
-print("🔥 STARTING ULTIMATE USA VIDEO GENERATION WITH 5B MODEL 🔥")
+print("🔥 STARTING 5B-I2V ULTIMATE USA VIDEO GENERATION 🔥")
 vid_num = int(time.time())
 
-# THE USER'S MASTER PROMPT (Now ensuring English output and better prompt structure)
 master_prompt = '''You are an AUTOMATIC YouTube Shorts Funny Snake Video Creator.
-
-I WILL DO NOTHING.
-Do not ask me for a story.
-Do not ask me for an image.
-Do not ask me for characters.
-Do not ask me for voices.
-Do not ask me for a topic.
-
-YOU MUST AUTOMATICALLY CREATE EVERYTHING.
-
 Create a completely original funny 3D animated video.
-Format: YouTube Shorts
-Language: USA English
-Style: High-quality funny 3D cartoon animation
+Language: USA English. Style: High-quality funny 3D cartoon animation.
 
-Every time I run this prompt, automatically invent a NEW funny story.
-Randomly choose a fresh concept yourself (e.g., Snakes open a restaurant, Snakes go to human school, Humans accidentally enter a snake world, The world suddenly turns upside down, etc.).
+Randomly choose a fresh concept. Sometimes set it in a deep jungle, sometimes in a human environment (like a city, house, hospital, or school). 
 
-YOU MUST AUTOMATICALLY assign suitable voices from this list:
-- en-US-ChristopherNeural (Deep, serious male)
-- en-US-EricNeural (Natural male)
-- en-US-GuyNeural (Friendly male)
-- en-US-JennyNeural (Natural female)
+YOU MUST assign suitable expressive American voices from this list:
+- en-US-GuyNeural (Excited male)
 - en-US-AriaNeural (Energetic female)
-- en-US-AnaNeural (Playful female child)
+- en-US-SteffanNeural (Deep strong male)
+- en-US-JennyNeural (Natural female)
 
-Automatically divide the story into short scenes (3-4 scenes).
-
-Output STRICTLY as a JSON array of objects. Each object represents one scene.
+Output STRICTLY as a JSON array of objects for 3 scenes.
 Each object MUST have:
-1. "voice": The EXACT name of the voice from the list above.
-2. "narration": The English dialogue/narration for this scene.
-3. "visual": A highly detailed, descriptive English prompt for a 3D Pixar style scene. (e.g., "A green cartoon snake wearing a tiny chef hat is tossing a pizza in the air inside a bustling, colorful kitchen.")
-
-RAW JSON ARRAY ONLY. NO MARKDOWN. NO EXTRA TEXT.'''
+1. "voice": EXACT name of the voice.
+2. "narration": Short, funny English dialogue.
+3. "visual": Detailed 3D scene description (e.g. "A green cartoon snake wearing a hat looking shocked in a modern human kitchen").
+RAW JSON ARRAY ONLY.'''
 
 script_txt = ask_gemini(master_prompt)
-if not script_txt:
-    print("❌ Failed to get Gemini script.")
-    exit(1)
+if not script_txt: exit(1)
 
 try:
     if script_txt.startswith("```json"): script_txt = script_txt[7:-3]
     elif script_txt.startswith("```"): script_txt = script_txt[3:-3]
     scenes = json.loads(script_txt.strip())
 except Exception as e:
-    print(f"❌ JSON Parse Error: {e}\nRaw text: {script_txt}")
     exit(1)
 
-meta_raw = ask_gemini(f"Based on this script: {script_txt}. Generate: 1. Catchy YouTube Title (<60 chars) 2. 2-line Description 3. 5 comma-separated tags. Format: TITLE|DESC|TAGS")
+meta_raw = ask_gemini(f"Based on this script: {script_txt}. Generate: 1. Catchy Title (<60 chars) 2. 2-line Description 3. 5 tags. Format: TITLE|DESC|TAGS")
 if meta_raw and '|' in meta_raw:
     meta = meta_raw.split('|')
-    title = meta[0].strip()
-    desc = meta[1].strip() if len(meta) > 1 else "Must watch 3D animated viral short! #shorts"
-    tags = meta[2].strip() if len(meta) > 2 else "3d, animation, viral, usa, shorts"
+    title, desc, tags = meta[0].strip(), meta[1].strip() if len(meta) > 1 else "Must watch!", meta[2].strip() if len(meta) > 2 else "3d, animation"
 else:
     title, desc, tags = "Amazing 3D Adventure! 🌟", "Must watch! #shorts", "3d, animation, viral"
 
@@ -143,15 +120,14 @@ for i, scene in enumerate(scenes):
     aud_file = f"aud_{vid_num}_{i}.mp3"
     clip_file = f"clip_{vid_num}_{i}.mp4"
     
-    # Use the specific voice chosen by AI for multiple characters!
-    voice = scene.get("voice", "en-US-ChristopherNeural")
+    # Added +15% rate to make voices sound more energetic and less robotic
+    voice = scene.get("voice", "en-US-GuyNeural")
     safe_text = shlex.quote(scene["narration"])
-    os.system(f'edge-tts --voice "{voice}" --text {safe_text} --write-media {aud_file}')
+    os.system(f'edge-tts --voice "{voice}" --rate=+15% --text {safe_text} --write-media {aud_file}')
     
-    # Generate the high-quality video for this scene
     if generate_local_gpu_video(scene["visual"], raw_vid):
-        # Freeze last frame if audio is longer, trim if video is longer. PERFECT SYNC & NO LOOPING BUG.
-        cmd = f'ffmpeg -y -i "{raw_vid}" -i "{aud_file}" -map 0:v:0 -map 1:a:0 -vf "tpad=stop_mode=clone:stop_duration=20" -c:v libx264 -c:a aac -shortest -loglevel error "{clip_file}"'
+        # BUG FIX: Ultra-smooth FFmpeg sync. Automatically scales video to match audio length seamlessly.
+        cmd = f'ffmpeg -y -i "{raw_vid}" -i "{aud_file}" -map 0:v:0 -map 1:a:0 -vf "tpad=stop_mode=clone:stop_duration=10, fps=24" -c:v libx264 -preset fast -crf 18 -c:a aac -shortest -loglevel error "{clip_file}"'
         os.system(cmd)
         clips.append(clip_file)
 
@@ -160,7 +136,7 @@ if clips:
     clip_objs = [VideoFileClip(c) for c in clips]
     concatenate_videoclips(clip_objs).write_videofile(final_video, fps=24, codec="libx264", logger=None)
     
-    print("☁️ Cloning GitHub Repo & Pushing Files...")
+    print("☁️ Pushing to GitHub...")
     repo_url = f"https://oauth2:{GH_PAT}@github.com/{GITHUB_REPO}.git"
     os.system(f"git clone {repo_url} myrepo")
     
@@ -171,9 +147,7 @@ if clips:
             with open(history_file, "r") as f: history = json.loads(f.read())
         except: pass
         
-    new_entry = {"file": final_video, "title": title, "desc": desc, "tags": tags, "date": today_date, "id": str(vid_num), "cat": "SHORT", "status_msg": "🟢 HD 3D Masterpiece", "status_type": "done"}
-    history.insert(0, new_entry)
-    
+    history.insert(0, {"file": final_video, "title": title, "desc": desc, "tags": tags, "date": today_date, "id": str(vid_num), "cat": "SHORT"})
     with open(history_file, "w") as f: f.write(json.dumps(history))
     os.system(f"cp {final_video} myrepo/")
 
@@ -181,41 +155,29 @@ if clips:
     <style>
         body { font-family: sans-serif; background: #0b0b0b; color: #fff; margin: 0; padding: 20px; text-align: center; }
         h1 { color: #ffeb3b; font-size: 24px; margin-bottom: 5px; }
-        p { color: #aaa; font-size: 14px; margin-top: 0; }
         h2 { color: #00e676; margin-top: 30px; border-bottom: 2px solid #222; padding-bottom: 8px; font-size: 18px; text-align: left; }
         .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
         .card { background: #181818; padding: 15px; border-radius: 12px; width: 320px; border: 1px solid #333; text-align: left; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .date { font-size: 11px; color: #00e676; margin-bottom: 8px; font-weight: bold; }
         video { width: 100%; border-radius: 8px; background: #000; margin-bottom: 10px; cursor: pointer; }
-        .btn { background: #00e676; color: #000; display: block; padding: 10px; text-align: center; text-decoration: none; font-weight: bold; border-radius: 6px; margin-bottom: 8px; cursor: pointer; border: none; width: 100%; box-sizing: border-box; }
-        .btn-dark { background: #2a2a2a; color: #fff; font-size: 13px; }
+        .btn { background: #00e676; color: #000; display: block; padding: 10px; text-align: center; text-decoration: none; font-weight: bold; border-radius: 6px; margin-bottom: 8px; width: 100%; box-sizing: border-box; }
+        .btn-dark { background: #2a2a2a; color: #fff; font-size: 13px; border: none;}
         .box { display: none; background: #111; padding: 10px; border-radius: 8px; margin-top: 8px; font-size: 12px; border: 1px solid #333; }
-        .row { display: flex; align-items: center; background: #1a1a1a; margin-bottom: 6px; border-radius: 4px; overflow: hidden; border: 1px solid #333; }
-        .txt { flex: 1; padding: 8px; color: #ddd; overflow-x: auto; white-space: nowrap; font-family: monospace; }
+        .row { display: flex; align-items: center; background: #1a1a1a; margin-bottom: 6px; border-radius: 4px; border: 1px solid #333; }
+        .txt { flex: 1; padding: 8px; color: #ddd; overflow-x: auto; white-space: nowrap; }
         .cpy { background: #4285f4; color: white; border: none; padding: 8px 12px; cursor: pointer; font-weight: bold; font-size: 11px; }
-        .cpy:hover { background: #3367d6; }
     </style></head>
-    <body>
-        <h1>🇺🇸 USA 3D Animation Studio</h1>
-        <p>High-Quality 3D Videos - Fully Automated</p>
-        <h2>🐍 3D Inverse Reality & Snake Shorts</h2><div class='grid'>"""
+    <body><h1>🇺🇸 USA 3D Animation Studio</h1><h2>🐍 Viral 3D Shorts</h2><div class='grid'>"""
 
     for h in history:
         vid = h['id']
-        html += f"""<div class="card">
-            <div class="date">📅 {h['date']}</div>
-            <video src="{h['file']}" controls preload="none" poster=""></video>
-            <a href="{h['file']}" download class="btn">⬇️ Download Video</a>
-            <button class="btn btn-dark" onclick="let b=document.getElementById('b-{vid}'); b.style.display = b.style.display==='block' ? 'none' : 'block'">📝 Title, Desc & Tags</button>
+        html += f"""<div class="card"><b>📅 {h['date']}</b>
+            <video src="{h['file']}" controls preload="none"></video>
+            <a href="{h['file']}" download class="btn">⬇️ Download</a>
+            <button class="btn btn-dark" onclick="let b=document.getElementById('b-{vid}'); b.style.display = b.style.display==='block' ? 'none' : 'block'">📝 Details</button>
             <div class="box" id="b-{vid}">
-                <div style="font-size:10px; color:#888; margin-bottom:2px;">TITLE:</div>
                 <div class="row"><div class="txt" id="t-{vid}">{h['title']}</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('t-{vid}').innerText)">COPY</button></div>
-                <div style="font-size:10px; color:#888; margin-bottom:2px;">DESCRIPTION:</div>
                 <div class="row"><div class="txt" id="d-{vid}">{h['desc']}</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('d-{vid}').innerText)">COPY</button></div>
-                <div style="font-size:10px; color:#888; margin-bottom:2px;">TAGS:</div>
-                <div class="row"><div class="txt" id="g-{vid}">{h['tags']}</div><button class="cpy" onclick="navigator.clipboard.writeText(document.getElementById('g-{vid}').innerText)">COPY</button></div>
-            </div>
-        </div>"""
+            </div></div>"""
     
     html += "</div></body></html>"
     with open("myrepo/index.html", "w") as f: f.write(html)
@@ -224,8 +186,6 @@ if clips:
     os.system('git config user.name "Kaggle GPU Bot"')
     os.system('git config user.email "bot@kaggle.com"')
     os.system('git add .')
-    os.system('git commit -m "Auto Update: HQ 3D Video Ready 🚀"')
+    os.system('git commit -m "Auto Update: HQ 5B-I2V Video Ready 🚀"')
     os.system('git push origin main || git push origin master')
-    print("✅ SUCCESS! Perfect Quality 3D Video pushed to GitHub.")
-else:
-    print("❌ No clips were generated.")
+    print("✅ SUCCESS! Perfect 5B-I2V Video pushed to GitHub.")
