@@ -12,8 +12,9 @@ GEMINI_API_KEY = "PLACEHOLDER_GEMINI"
 GH_PAT = "PLACEHOLDER_GH_PAT"
 GITHUB_REPO = "PLACEHOLDER_GITHUB_REPO"
 
-print("📦 Installing locked dependencies for the Image-to-Video 5B setup...")
-os.system("pip install -q diffusers==0.30.2 transformers==4.44.2 accelerate imageio-ffmpeg moviepy==1.0.3 edge-tts")
+print("📦 Installing correct dependencies for the Image-to-Video 5B setup...")
+# Fixed: Installing latest diffusers directly from GitHub so it recognizes CogVideoXImageToVideoPipeline
+os.system("pip install -q git+https://github.com/huggingface/diffusers.git transformers==4.44.2 accelerate imageio-ffmpeg moviepy==1.0.3 edge-tts")
 
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 from diffusers import AutoPipelineForText2Image, CogVideoXImageToVideoPipeline
@@ -23,19 +24,19 @@ today_date = datetime.now().strftime("%d-%b-%Y")
 
 def generate_local_gpu_video(prompt, filename):
     try:
-        print("🎨 Step 1: Generating 3D Reference Image (SDXL Turbo) so AI knows the exact design...")
-        # Fast image generation for reference
+        print("🎨 Step 1: Generating 3D Reference Image (SDXL Turbo)...")
+        # Load SDXL Turbo for image generation
         img_pipe = AutoPipelineForText2Image.from_pretrained("stabilityai/sdxl-turbo", torch_dtype=torch.float16, variant="fp16")
         img_pipe.to("cuda")
         
         image_prompt = f"Highly detailed 3D Pixar style animation frame, masterpiece, best quality, vibrant colors, {prompt}"
         reference_image = img_pipe(prompt=image_prompt, num_inference_steps=4, guidance_scale=0.0).images[0]
         
-        # Free GPU memory immediately
+        # Free GPU memory
         del img_pipe
         gc.collect()
         torch.cuda.empty_cache()
-        print("✅ Reference Image generated! Now animating...")
+        print("✅ Reference Image generated!")
 
         print("🚀 Step 2: Loading CogVideoX-5B-I2V to animate the image...")
         video_pipe = CogVideoXImageToVideoPipeline.from_pretrained("THUDM/CogVideoX-5b-I2V", torch_dtype=torch.float16)
@@ -43,10 +44,9 @@ def generate_local_gpu_video(prompt, filename):
         video_pipe.vae.enable_slicing()
         video_pipe.vae.enable_tiling()
         
-        # Generate video using the reference image AND the text prompt
         video_prompt = f"Smooth cinematic motion, clear focus, high quality 3d animation, {prompt}"
         video_frames = video_pipe(image=reference_image, prompt=video_prompt, num_frames=49, num_inference_steps=25).frames[0]
-        export_to_video(video_frames, filename, fps=12) # Changed fps for smoother playback
+        export_to_video(video_frames, filename, fps=12)
         
         del video_pipe
         gc.collect()
@@ -82,7 +82,7 @@ master_prompt = '''You are an AUTOMATIC YouTube Shorts Funny Snake Video Creator
 Create a completely original funny 3D animated video.
 Language: USA English. Style: High-quality funny 3D cartoon animation.
 
-Randomly choose a fresh concept. Sometimes set it in a deep jungle, sometimes in a human environment (like a city, house, hospital, or school). 
+Randomly choose a fresh concept. Sometimes set it in a deep jungle, sometimes in a human environment. 
 
 YOU MUST assign suitable expressive American voices from this list:
 - en-US-GuyNeural (Excited male)
@@ -94,7 +94,7 @@ Output STRICTLY as a JSON array of objects for 3 scenes.
 Each object MUST have:
 1. "voice": EXACT name of the voice.
 2. "narration": Short, funny English dialogue.
-3. "visual": Detailed 3D scene description (e.g. "A green cartoon snake wearing a hat looking shocked in a modern human kitchen").
+3. "visual": Detailed 3D scene description.
 RAW JSON ARRAY ONLY.'''
 
 script_txt = ask_gemini(master_prompt)
@@ -120,13 +120,11 @@ for i, scene in enumerate(scenes):
     aud_file = f"aud_{vid_num}_{i}.mp3"
     clip_file = f"clip_{vid_num}_{i}.mp4"
     
-    # Added +15% rate to make voices sound more energetic and less robotic
     voice = scene.get("voice", "en-US-GuyNeural")
     safe_text = shlex.quote(scene["narration"])
     os.system(f'edge-tts --voice "{voice}" --rate=+15% --text {safe_text} --write-media {aud_file}')
     
     if generate_local_gpu_video(scene["visual"], raw_vid):
-        # BUG FIX: Ultra-smooth FFmpeg sync. Automatically scales video to match audio length seamlessly.
         cmd = f'ffmpeg -y -i "{raw_vid}" -i "{aud_file}" -map 0:v:0 -map 1:a:0 -vf "tpad=stop_mode=clone:stop_duration=10, fps=24" -c:v libx264 -preset fast -crf 18 -c:a aac -shortest -loglevel error "{clip_file}"'
         os.system(cmd)
         clips.append(clip_file)
@@ -188,4 +186,3 @@ if clips:
     os.system('git add .')
     os.system('git commit -m "Auto Update: HQ 5B-I2V Video Ready 🚀"')
     os.system('git push origin main || git push origin master')
-    print("✅ SUCCESS! Perfect 5B-I2V Video pushed to GitHub.")
