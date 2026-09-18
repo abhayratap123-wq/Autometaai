@@ -11,9 +11,9 @@ GEMINI_API_KEY = "PLACEHOLDER_GEMINI"
 GH_PAT = "PLACEHOLDER_GH_PAT"
 GITHUB_REPO = "PLACEHOLDER_GITHUB_REPO"
 
-print("📦 Installing latest dependencies for Wan 2.1...")
-# Installed latest diffusers directly from GitHub to support Wan 2.1
-os.system("pip install -q git+https://github.com/huggingface/diffusers.git transformers accelerate moviepy==1.0.3 edge-tts")
+print("📦 Installing latest dependencies for Wan 2.1 and fixing torchao error...")
+# Specify diffusers version to avoid the torchao issue, and install torchao explicitly if needed
+os.system("pip install -q moviepy==1.0.3 edge-tts diffusers==0.32.2 transformers accelerate")
 
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 from diffusers import DiffusionPipeline
@@ -24,7 +24,6 @@ day_of_year = datetime.now().timetuple().tm_yday
 
 print("🚀 Loading WAN 2.1 (1.3B) 3D AI Model into T4 GPU...")
 try:
-    # Using the powerful Wan 2.1 Model requested by you!
     pipe = DiffusionPipeline.from_pretrained("Wan-AI/Wan2.1-T2V-1.3B", torch_dtype=torch.float16)
     pipe.enable_model_cpu_offload()
     print("✅ Wan 2.1 3D Model Loaded Successfully!")
@@ -34,11 +33,9 @@ except Exception as e:
 
 def generate_local_gpu_video(prompt, filename):
     try:
-        # Pushing the prompt to absolute 3D Pixar limits
         hd_prompt = f"3d pixar style animation, masterpiece, best quality, highly detailed, vibrant colors, smooth motion, {prompt}"
         print(f"🎥 Generating Wan 2.1 3D Video: {hd_prompt}")
         
-        # Generating a smooth continuous video (50 steps for best quality)
         video_frames = pipe(hd_prompt, num_inference_steps=50).frames[0]
         export_to_video(video_frames, filename, fps=16)
         return True
@@ -75,7 +72,6 @@ def ask_gemini(prompt):
 print("🔥 STARTING WAN 2.1 USA VIDEO GENERATION 🔥")
 vid_num = int(time.time())
 
-# Rotate topics daily
 if day_of_year % 2 == 0:
     cat = "LONG"
     topics = [
@@ -84,7 +80,6 @@ if day_of_year % 2 == 0:
         "A magical 3D journey through a hidden valley filled with exotic colorful birds and waterfalls"
     ]
     topic = random.choice(topics)
-    # We ask for a full continuous story narration, and ONE strong 3D visual to loop seamlessly
     prompt = f"Write a 120-word USA English 3D animated movie script about: {topic}. Output STRICTLY as JSON with 2 keys: 1. 'narration': The full English story text. 2. 'visual': A 10-word description for a single, highly detailed 3D scene that represents the whole story. RAW JSON ONLY."
 else:
     cat = "SHORT"
@@ -118,15 +113,11 @@ if meta_raw:
 else:
     title, desc, tags = "Amazing 3D Adventure! 🌟", "Must watch! #shorts", "3d, animation, viral"
 
-# File names
 raw_vid, aud_file, final_video = f"raw_{vid_num}.mp4", f"aud_{vid_num}.mp3", f"{cat}_USA_{vid_num}.mp4"
 
-# 1. Generate Voiceover
 os.system(f'edge-tts --voice "en-US-ChristopherNeural" --text "{scene_data["narration"]}" --write-media {aud_file}')
 
-# 2. Generate Single High-Quality Continuous Scene
 if generate_local_gpu_video(scene_data["visual"], raw_vid):
-    # Loop the high-quality scene for the exact duration of the audio, so it doesn't jump or glitch!
     os.system(f'ffmpeg -y -stream_loop -1 -i "{raw_vid}" -i "{aud_file}" -map 0:v:0 -map 1:a:0 -c:v libx264 -c:a aac -shortest "{final_video}" -loglevel error')
     
     print("☁️ Cloning GitHub Repo & Pushing Files...")
@@ -146,7 +137,6 @@ if generate_local_gpu_video(scene_data["visual"], raw_vid):
     with open(history_file, "w") as f: f.write(json.dumps(history))
     os.system(f"cp {final_video} myrepo/")
 
-    # Professional Website UI with No Auto-Play and Dropdown Info
     html = """<!DOCTYPE html><html lang="en"><head><title>🇺🇸 USA 3D AI Studio</title><meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body { font-family: sans-serif; background: #0b0b0b; color: #fff; margin: 0; padding: 20px; text-align: center; }
@@ -177,7 +167,6 @@ if generate_local_gpu_video(scene_data["visual"], raw_vid):
             html += "<p style='color:#555; font-size:13px;'>Generating next batch soon...</p>"
         for h in cat_items:
             vid = h['id']
-            # preload="none" ensures it doesn't auto-run or suck data. It only plays when clicked!
             html += f"""<div class="card">
                 <div class="date">📅 {h['date']}</div>
                 <video src="{h['file']}" controls preload="none" poster=""></video>
