@@ -11,22 +11,24 @@ GEMINI_API_KEY = "PLACEHOLDER_GEMINI"
 GH_PAT = "PLACEHOLDER_GH_PAT"
 GITHUB_REPO = "PLACEHOLDER_GITHUB_REPO"
 
-print("📦 Installing locked dependencies to fix FLAX_WEIGHTS_NAME error...")
-# Fixed transformers to 4.43.3 and diffusers to latest github branch to avoid clashes
-os.system("pip install -q git+https://github.com/huggingface/diffusers.git transformers==4.43.3 accelerate moviepy==1.0.3 edge-tts")
+print("📦 Installing stable dependencies for High-Quality 3D Video...")
+os.system("pip install -q diffusers transformers accelerate moviepy==1.0.3 edge-tts imageio-ffmpeg")
 
 from moviepy.editor import VideoFileClip, concatenate_videoclips
-from diffusers import DiffusionPipeline
+from diffusers import CogVideoXPipeline
 from diffusers.utils import export_to_video
 
 today_date = datetime.now().strftime("%d-%b-%Y")
 day_of_year = datetime.now().timetuple().tm_yday
 
-print("🚀 Loading WAN 2.1 (1.3B) 3D AI Model into T4 GPU...")
+print("🚀 Loading CogVideoX-2B (Premium 3D AI Model) into T4 GPU...")
 try:
-    pipe = DiffusionPipeline.from_pretrained("Wan-AI/Wan2.1-T2V-1.3B", torch_dtype=torch.float16)
-    pipe.enable_model_cpu_offload()
-    print("✅ Wan 2.1 3D Model Loaded Successfully!")
+    # CogVideoX-2b is the best 3D quality model that perfectly fits on a free T4 GPU
+    pipe = CogVideoXPipeline.from_pretrained("THUDM/CogVideoX-2b", torch_dtype=torch.float16)
+    pipe.enable_model_cpu_offload() # Keeps GPU memory safe from crashing
+    pipe.vae.enable_slicing()
+    pipe.vae.enable_tiling()
+    print("✅ 3D Model Loaded Successfully!")
 except Exception as e:
     print(f"❌ Model Load Error: {e}")
     exit(1)
@@ -34,10 +36,11 @@ except Exception as e:
 def generate_local_gpu_video(prompt, filename):
     try:
         hd_prompt = f"3d pixar style animation, masterpiece, best quality, highly detailed, vibrant colors, smooth motion, {prompt}"
-        print(f"🎥 Generating Wan 2.1 3D Video: {hd_prompt}")
+        print(f"🎥 Generating 3D Video: {hd_prompt}")
         
-        video_frames = pipe(hd_prompt, num_inference_steps=50).frames[0]
-        export_to_video(video_frames, filename, fps=16)
+        # 25 steps for fast but high-quality rendering
+        video_frames = pipe(prompt=hd_prompt, num_frames=49, num_inference_steps=25).frames[0]
+        export_to_video(video_frames, filename, fps=8)
         return True
     except Exception as e:
         print(f"❌ GPU Generation Error: {e}")
@@ -69,7 +72,7 @@ def ask_gemini(prompt):
         print(f"❌ Gemini Error: {e}")
         return None
 
-print("🔥 STARTING WAN 2.1 USA VIDEO GENERATION 🔥")
+print("🔥 STARTING ULTIMATE USA VIDEO GENERATION 🔥")
 vid_num = int(time.time())
 
 if day_of_year % 2 == 0:
@@ -131,7 +134,7 @@ if generate_local_gpu_video(scene_data["visual"], raw_vid):
             with open(history_file, "r") as f: history = json.loads(f.read())
         except: pass
         
-    new_entry = {"file": final_video, "title": title, "desc": desc, "tags": tags, "date": today_date, "id": str(vid_num), "cat": cat, "status_msg": "🟢 3D Wan Masterpiece", "status_type": "done"}
+    new_entry = {"file": final_video, "title": title, "desc": desc, "tags": tags, "date": today_date, "id": str(vid_num), "cat": cat, "status_msg": "🟢 3D Pixar Masterpiece", "status_type": "done"}
     history.insert(0, new_entry)
     
     with open(history_file, "w") as f: f.write(json.dumps(history))
@@ -157,7 +160,7 @@ if generate_local_gpu_video(scene_data["visual"], raw_vid):
     </style></head>
     <body>
         <h1>🇺🇸 USA 3D Animation Studio</h1>
-        <p>Fully Automated Daily AI 3D Videos Powered by Wan 2.1</p>
+        <p>Fully Automated Daily AI 3D Videos</p>
     """
 
     for cat_key, cat_name in [("LONG", "🎬 Epic 3D Stories (Long)"), ("SHORT", "🐍 3D Inverse Reality & Snake Shorts")]:
@@ -190,8 +193,8 @@ if generate_local_gpu_video(scene_data["visual"], raw_vid):
     os.system('git config user.name "Kaggle GPU Bot"')
     os.system('git config user.email "bot@kaggle.com"')
     os.system('git add .')
-    os.system('git commit -m "Auto Update: Wan 2.1 3D Masterpiece Ready 🚀"')
+    os.system('git commit -m "Auto Update: 3D Masterpiece Ready 🚀"')
     os.system('git push origin main || git push origin master')
-    print("✅ SUCCESS! Wan 2.1 3D Video and updated website pushed to GitHub.")
+    print("✅ SUCCESS! 3D Video and updated website pushed to GitHub.")
 else:
     print("❌ No clips were generated.")
