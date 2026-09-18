@@ -11,9 +11,9 @@ GEMINI_API_KEY = "PLACEHOLDER_GEMINI"
 GH_PAT = "PLACEHOLDER_GH_PAT"
 GITHUB_REPO = "PLACEHOLDER_GITHUB_REPO"
 
-print("📦 Installing locked dependencies to prevent any conflicts...")
-# Pinned transformers==4.44.2 to fix the FLAX_WEIGHTS_NAME error permanently
-os.system("pip install -q moviepy==1.0.3 edge-tts diffusers==0.32.2 transformers==4.44.2 accelerate")
+print("📦 Installing locked dependencies to fix FLAX_WEIGHTS_NAME error...")
+# Fixed transformers to 4.43.3 and diffusers to latest github branch to avoid clashes
+os.system("pip install -q git+https://github.com/huggingface/diffusers.git transformers==4.43.3 accelerate moviepy==1.0.3 edge-tts")
 
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 from diffusers import DiffusionPipeline
