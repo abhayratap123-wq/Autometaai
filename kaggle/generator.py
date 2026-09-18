@@ -11,8 +11,8 @@ GEMINI_API_KEY = "PLACEHOLDER_GEMINI"
 GH_PAT = "PLACEHOLDER_GH_PAT"
 GITHUB_REPO = "PLACEHOLDER_GITHUB_REPO"
 
-print("📦 Installing stable dependencies for High-Quality 3D Video...")
-os.system("pip install -q diffusers transformers accelerate moviepy==1.0.3 edge-tts imageio-ffmpeg")
+print("📦 Installing locked dependencies for the ultimate stable 3D Video generator...")
+os.system("pip install -q diffusers==0.30.2 transformers==4.44.2 accelerate imageio-ffmpeg moviepy==1.0.3 edge-tts")
 
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 from diffusers import CogVideoXPipeline
@@ -23,9 +23,9 @@ day_of_year = datetime.now().timetuple().tm_yday
 
 print("🚀 Loading CogVideoX-2B (Premium 3D AI Model) into T4 GPU...")
 try:
-    # CogVideoX-2b is the best 3D quality model that perfectly fits on a free T4 GPU
+    # CogVideoX-2B generates incredibly high quality, real 3D videos!
     pipe = CogVideoXPipeline.from_pretrained("THUDM/CogVideoX-2b", torch_dtype=torch.float16)
-    pipe.enable_model_cpu_offload() # Keeps GPU memory safe from crashing
+    pipe.enable_model_cpu_offload() 
     pipe.vae.enable_slicing()
     pipe.vae.enable_tiling()
     print("✅ 3D Model Loaded Successfully!")
@@ -35,10 +35,11 @@ except Exception as e:
 
 def generate_local_gpu_video(prompt, filename):
     try:
-        hd_prompt = f"3d pixar style animation, masterpiece, best quality, highly detailed, vibrant colors, smooth motion, {prompt}"
+        # Prompt enhanced for Pixar Style 3D Animation
+        hd_prompt = f"3d pixar style animation, vibrant colors, highly detailed, realistic textures, smooth cinematic motion, {prompt}"
         print(f"🎥 Generating 3D Video: {hd_prompt}")
         
-        # 25 steps for fast but high-quality rendering
+        # Generates a proper, longer scene (49 frames) for smooth playback
         video_frames = pipe(prompt=hd_prompt, num_frames=49, num_inference_steps=25).frames[0]
         export_to_video(video_frames, filename, fps=8)
         return True
@@ -83,16 +84,17 @@ if day_of_year % 2 == 0:
         "A magical 3D journey through a hidden valley filled with exotic colorful birds and waterfalls"
     ]
     topic = random.choice(topics)
-    prompt = f"Write a 120-word USA English 3D animated movie script about: {topic}. Output STRICTLY as JSON with 2 keys: 1. 'narration': The full English story text. 2. 'visual': A 10-word description for a single, highly detailed 3D scene that represents the whole story. RAW JSON ONLY."
+    # Ensuring short sentences so audio length matches video length perfectly
+    prompt = f"Write a 90-word USA English 3D animated movie script about: {topic}. Output STRICTLY as JSON with 2 keys: 1. 'narration': The full English story text (Keep sentences very short). 2. 'visual': A 10-word description for a single, highly detailed 3D scene that represents the whole story. RAW JSON ONLY."
 else:
     cat = "SHORT"
     topics = [
         "Funny 3D animated inverse reality where a human bites a snake in bed and the snake screams for a hospital",
         "Hilarious 3D animated cartoon snakes getting scared of a crying human in a deep jungle hole",
-        "Crazy 3D animated cartoon snakes with mustaches going to school with little backpacks"
+        "Funny 3D animated inverse reality where snakes drink tea at a stall and get scared of a human running towards them"
     ]
     topic = random.choice(topics)
-    prompt = f"Write a 60-word USA English funny 3D cartoon shorts script about: {topic}. Output STRICTLY as JSON with 2 keys: 1. 'narration': The full English script. 2. 'visual': A 10-word description for a single, highly detailed 3D scene. RAW JSON ONLY."
+    prompt = f"Write a 40-word USA English funny 3D cartoon shorts script about: {topic}. Output STRICTLY as JSON with 2 keys: 1. 'narration': The full English script (Keep sentences short and funny). 2. 'visual': A 10-word description for a single, highly detailed 3D scene. RAW JSON ONLY."
 
 script_txt = ask_gemini(prompt)
 if not script_txt:
@@ -118,10 +120,15 @@ else:
 
 raw_vid, aud_file, final_video = f"raw_{vid_num}.mp4", f"aud_{vid_num}.mp3", f"{cat}_USA_{vid_num}.mp4"
 
+# Generate Audio Voiceover
 os.system(f'edge-tts --voice "en-US-ChristopherNeural" --text "{scene_data["narration"]}" --write-media {aud_file}')
 
+# Generate Video and Combine (THE LOOPING BUG FIX)
 if generate_local_gpu_video(scene_data["visual"], raw_vid):
-    os.system(f'ffmpeg -y -stream_loop -1 -i "{raw_vid}" -i "{aud_file}" -map 0:v:0 -map 1:a:0 -c:v libx264 -c:a aac -shortest "{final_video}" -loglevel error')
+    # This FFmpeg command uses 'tpad' to beautifully freeze the last frame of the video instead of looping back!
+    # No more jumping or glitching!
+    cmd = f'ffmpeg -y -i "{raw_vid}" -i "{aud_file}" -map 0:v:0 -map 1:a:0 -vf "tpad=stop_mode=clone:stop_duration=20" -c:v libx264 -c:a aac -shortest -loglevel error "{final_video}"'
+    os.system(cmd)
     
     print("☁️ Cloning GitHub Repo & Pushing Files...")
     repo_url = f"https://oauth2:{GH_PAT}@github.com/{GITHUB_REPO}.git"
@@ -134,12 +141,13 @@ if generate_local_gpu_video(scene_data["visual"], raw_vid):
             with open(history_file, "r") as f: history = json.loads(f.read())
         except: pass
         
-    new_entry = {"file": final_video, "title": title, "desc": desc, "tags": tags, "date": today_date, "id": str(vid_num), "cat": cat, "status_msg": "🟢 3D Pixar Masterpiece", "status_type": "done"}
+    new_entry = {"file": final_video, "title": title, "desc": desc, "tags": tags, "date": today_date, "id": str(vid_num), "cat": cat, "status_msg": "🟢 HD 3D Masterpiece", "status_type": "done"}
     history.insert(0, new_entry)
     
     with open(history_file, "w") as f: f.write(json.dumps(history))
     os.system(f"cp {final_video} myrepo/")
 
+    # Beautiful UI for the Website
     html = """<!DOCTYPE html><html lang="en"><head><title>🇺🇸 USA 3D AI Studio</title><meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body { font-family: sans-serif; background: #0b0b0b; color: #fff; margin: 0; padding: 20px; text-align: center; }
@@ -160,7 +168,7 @@ if generate_local_gpu_video(scene_data["visual"], raw_vid):
     </style></head>
     <body>
         <h1>🇺🇸 USA 3D Animation Studio</h1>
-        <p>Fully Automated Daily AI 3D Videos</p>
+        <p>High-Quality 3D Videos - Fully Automated</p>
     """
 
     for cat_key, cat_name in [("LONG", "🎬 Epic 3D Stories (Long)"), ("SHORT", "🐍 3D Inverse Reality & Snake Shorts")]:
@@ -193,8 +201,8 @@ if generate_local_gpu_video(scene_data["visual"], raw_vid):
     os.system('git config user.name "Kaggle GPU Bot"')
     os.system('git config user.email "bot@kaggle.com"')
     os.system('git add .')
-    os.system('git commit -m "Auto Update: 3D Masterpiece Ready 🚀"')
+    os.system('git commit -m "Auto Update: HQ 3D Video Ready 🚀"')
     os.system('git push origin main || git push origin master')
-    print("✅ SUCCESS! 3D Video and updated website pushed to GitHub.")
+    print("✅ SUCCESS! Perfect Quality 3D Video pushed to GitHub.")
 else:
     print("❌ No clips were generated.")
