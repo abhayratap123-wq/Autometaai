@@ -22,23 +22,25 @@ from diffusers.utils import export_to_video
 today_date = datetime.now().strftime("%d-%b-%Y")
 day_of_year = datetime.now().timetuple().tm_yday
 
-print("🚀 Loading CogVideoX-2B (Premium 3D AI Model) into T4 GPU...")
+print("🚀 Loading CogVideoX-5B (Ultimate Premium 3D AI Model) into T4 GPU...")
 try:
-    pipe = CogVideoXPipeline.from_pretrained("THUDM/CogVideoX-2b", torch_dtype=torch.float16)
+    # Upgrading to CogVideoX-5B for superior visual quality!
+    pipe = CogVideoXPipeline.from_pretrained("THUDM/CogVideoX-5b", torch_dtype=torch.float16)
     pipe.enable_model_cpu_offload() 
     pipe.vae.enable_slicing()
     pipe.vae.enable_tiling()
-    print("✅ 3D Model Loaded Successfully!")
+    print("✅ 5B 3D Model Loaded Successfully!")
 except Exception as e:
     print(f"❌ Model Load Error: {e}")
     exit(1)
 
 def generate_local_gpu_video(prompt, filename):
     try:
-        hd_prompt = f"3d pixar style animation, vibrant colors, highly detailed, realistic textures, smooth cinematic motion, {prompt}"
+        # Prompt enhanced for Pixar Style 3D Animation (English)
+        hd_prompt = f"Highly detailed 3D Pixar style animation, masterpiece, best quality, vibrant colors, smooth cinematic motion, clear focus, {prompt}"
         print(f"🎥 Generating 3D Video: {hd_prompt}")
         
-        # 49 frames at 8fps gives ~6 seconds of high quality video per scene.
+        # Generates a proper, longer scene (49 frames) for smooth playback
         video_frames = pipe(prompt=hd_prompt, num_frames=49, num_inference_steps=25).frames[0]
         export_to_video(video_frames, filename, fps=8)
         return True
@@ -72,10 +74,10 @@ def ask_gemini(prompt):
         print(f"❌ Gemini Error: {e}")
         return None
 
-print("🔥 STARTING ULTIMATE USA VIDEO GENERATION 🔥")
+print("🔥 STARTING ULTIMATE USA VIDEO GENERATION WITH 5B MODEL 🔥")
 vid_num = int(time.time())
 
-# THE USER'S MASTER PROMPT
+# THE USER'S MASTER PROMPT (Now ensuring English output and better prompt structure)
 master_prompt = '''You are an AUTOMATIC YouTube Shorts Funny Snake Video Creator.
 
 I WILL DO NOTHING.
@@ -109,7 +111,7 @@ Output STRICTLY as a JSON array of objects. Each object represents one scene.
 Each object MUST have:
 1. "voice": The EXACT name of the voice from the list above.
 2. "narration": The English dialogue/narration for this scene.
-3. "visual": A 10-word description for a highly detailed 3D Pixar style scene.
+3. "visual": A highly detailed, descriptive English prompt for a 3D Pixar style scene. (e.g., "A green cartoon snake wearing a tiny chef hat is tossing a pizza in the air inside a bustling, colorful kitchen.")
 
 RAW JSON ARRAY ONLY. NO MARKDOWN. NO EXTRA TEXT.'''
 
@@ -146,6 +148,7 @@ for i, scene in enumerate(scenes):
     safe_text = shlex.quote(scene["narration"])
     os.system(f'edge-tts --voice "{voice}" --text {safe_text} --write-media {aud_file}')
     
+    # Generate the high-quality video for this scene
     if generate_local_gpu_video(scene["visual"], raw_vid):
         # Freeze last frame if audio is longer, trim if video is longer. PERFECT SYNC & NO LOOPING BUG.
         cmd = f'ffmpeg -y -i "{raw_vid}" -i "{aud_file}" -map 0:v:0 -map 1:a:0 -vf "tpad=stop_mode=clone:stop_duration=20" -c:v libx264 -c:a aac -shortest -loglevel error "{clip_file}"'
