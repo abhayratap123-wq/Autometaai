@@ -105,7 +105,12 @@ print("✅ Images generated and SDXL completely cleared from VRAM!")
 # ==========================================
 print("🚀 STAGE 2: Loading CogVideoX-5B-I2V to animate images...")
 try:
-    video_pipe = CogVideoXImageToVideoPipeline.from_pretrained("THUDM/CogVideoX-5b-I2V", torch_dtype=torch.float16)
+    # BUG FIX: Added variant="fp16" so it doesn't crush the Kaggle CPU RAM!
+    video_pipe = CogVideoXImageToVideoPipeline.from_pretrained(
+        "THUDM/CogVideoX-5b-I2V", 
+        torch_dtype=torch.float16,
+        variant="fp16" 
+    )
     # Using sequential offload saves maximum VRAM for 5B model on Kaggle T4
     video_pipe.enable_sequential_cpu_offload()
     video_pipe.vae.enable_slicing()
@@ -131,7 +136,7 @@ for i, scene in enumerate(scenes):
         video_frames = video_pipe(image=ref_image, prompt=video_prompt, num_frames=49, num_inference_steps=25).frames[0]
         export_to_video(video_frames, raw_vid, fps=12)
         
-        # Bug Fix: Ultra-smooth FFmpeg sync
+        # Ultra-smooth FFmpeg sync
         cmd = f'ffmpeg -y -i "{raw_vid}" -i "{aud_file}" -map 0:v:0 -map 1:a:0 -vf "tpad=stop_mode=clone:stop_duration=10, fps=24" -c:v libx264 -preset fast -crf 18 -c:a aac -shortest -loglevel error "{clip_file}"'
         os.system(cmd)
         clips.append(clip_file)
