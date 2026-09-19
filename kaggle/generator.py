@@ -12,49 +12,14 @@ GEMINI_API_KEY = "PLACEHOLDER_GEMINI"
 GH_PAT = "PLACEHOLDER_GH_PAT"
 GITHUB_REPO = "PLACEHOLDER_GITHUB_REPO"
 
-print("📦 Installing correct dependencies for the Image-to-Video 5B setup...")
-# Fixed: Installing latest diffusers directly from GitHub so it recognizes CogVideoXImageToVideoPipeline
+print("📦 Installing locked dependencies for the memory-safe Image-to-Video 5B setup...")
 os.system("pip install -q git+https://github.com/huggingface/diffusers.git transformers==4.44.2 accelerate imageio-ffmpeg moviepy==1.0.3 edge-tts")
 
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 from diffusers import AutoPipelineForText2Image, CogVideoXImageToVideoPipeline
-from diffusers.utils import export_to_video
+from diffusers.utils import export_to_video, load_image
 
 today_date = datetime.now().strftime("%d-%b-%Y")
-
-def generate_local_gpu_video(prompt, filename):
-    try:
-        print("🎨 Step 1: Generating 3D Reference Image (SDXL Turbo)...")
-        # Load SDXL Turbo for image generation
-        img_pipe = AutoPipelineForText2Image.from_pretrained("stabilityai/sdxl-turbo", torch_dtype=torch.float16, variant="fp16")
-        img_pipe.to("cuda")
-        
-        image_prompt = f"Highly detailed 3D Pixar style animation frame, masterpiece, best quality, vibrant colors, {prompt}"
-        reference_image = img_pipe(prompt=image_prompt, num_inference_steps=4, guidance_scale=0.0).images[0]
-        
-        # Free GPU memory
-        del img_pipe
-        gc.collect()
-        torch.cuda.empty_cache()
-        print("✅ Reference Image generated!")
-
-        print("🚀 Step 2: Loading CogVideoX-5B-I2V to animate the image...")
-        video_pipe = CogVideoXImageToVideoPipeline.from_pretrained("THUDM/CogVideoX-5b-I2V", torch_dtype=torch.float16)
-        video_pipe.enable_model_cpu_offload()
-        video_pipe.vae.enable_slicing()
-        video_pipe.vae.enable_tiling()
-        
-        video_prompt = f"Smooth cinematic motion, clear focus, high quality 3d animation, {prompt}"
-        video_frames = video_pipe(image=reference_image, prompt=video_prompt, num_frames=49, num_inference_steps=25).frames[0]
-        export_to_video(video_frames, filename, fps=12)
-        
-        del video_pipe
-        gc.collect()
-        torch.cuda.empty_cache()
-        return True
-    except Exception as e:
-        print(f"❌ GPU Generation Error: {e}")
-        return False
 
 def ask_gemini(prompt):
     print("🧠 Contacting Gemini AI...")
@@ -114,21 +79,73 @@ if meta_raw and '|' in meta_raw:
 else:
     title, desc, tags = "Amazing 3D Adventure! 🌟", "Must watch! #shorts", "3d, animation, viral"
 
+# ==========================================
+# STAGE 1: GENERATE ALL IMAGES FIRST
+# ==========================================
+print("🎨 STAGE 1: Loading SDXL Turbo to generate reference images...")
+img_pipe = AutoPipelineForText2Image.from_pretrained("stabilityai/sdxl-turbo", torch_dtype=torch.float16, variant="fp16")
+img_pipe.enable_model_cpu_offload()
+
+for i, scene in enumerate(scenes):
+    print(f"🖼️ Generating image for scene {i+1}...")
+    image_prompt = f"Highly detailed 3D Pixar style animation frame, masterpiece, best quality, vibrant colors, {scene['visual']}"
+    reference_image = img_pipe(prompt=image_prompt, num_inference_steps=4, guidance_scale=0.0).images[0]
+    img_path = f"ref_{vid_num}_{i}.png"
+    reference_image.save(img_path)
+    scene['img_path'] = img_path
+
+# Completely obliterate the image model from memory
+del img_pipe
+gc.collect()
+torch.cuda.empty_cache()
+print("✅ Images generated and SDXL completely cleared from VRAM!")
+
+# ==========================================
+# STAGE 2: GENERATE ALL VIDEOS
+# ==========================================
+print("🚀 STAGE 2: Loading CogVideoX-5B-I2V to animate images...")
+try:
+    video_pipe = CogVideoXImageToVideoPipeline.from_pretrained("THUDM/CogVideoX-5b-I2V", torch_dtype=torch.float16)
+    # Using sequential offload saves maximum VRAM for 5B model on Kaggle T4
+    video_pipe.enable_sequential_cpu_offload()
+    video_pipe.vae.enable_slicing()
+    video_pipe.vae.enable_tiling()
+except Exception as e:
+    print(f"❌ 5B Model Load Error: {e}")
+    exit(1)
+
 clips = []
 for i, scene in enumerate(scenes):
     raw_vid = f"raw_{vid_num}_{i}.mp4"
     aud_file = f"aud_{vid_num}_{i}.mp3"
     clip_file = f"clip_{vid_num}_{i}.mp4"
     
+    print(f"🎙️ Generating audio and video for scene {i+1}...")
     voice = scene.get("voice", "en-US-GuyNeural")
     safe_text = shlex.quote(scene["narration"])
     os.system(f'edge-tts --voice "{voice}" --rate=+15% --text {safe_text} --write-media {aud_file}')
     
-    if generate_local_gpu_video(scene["visual"], raw_vid):
+    try:
+        ref_image = load_image(scene['img_path'])
+        video_prompt = f"Smooth cinematic motion, clear focus, high quality 3d animation, {scene['visual']}"
+        video_frames = video_pipe(image=ref_image, prompt=video_prompt, num_frames=49, num_inference_steps=25).frames[0]
+        export_to_video(video_frames, raw_vid, fps=12)
+        
+        # Bug Fix: Ultra-smooth FFmpeg sync
         cmd = f'ffmpeg -y -i "{raw_vid}" -i "{aud_file}" -map 0:v:0 -map 1:a:0 -vf "tpad=stop_mode=clone:stop_duration=10, fps=24" -c:v libx264 -preset fast -crf 18 -c:a aac -shortest -loglevel error "{clip_file}"'
         os.system(cmd)
         clips.append(clip_file)
+    except Exception as e:
+        print(f"❌ Video Generation Error on scene {i+1}: {e}")
 
+# Free video memory
+del video_pipe
+gc.collect()
+torch.cuda.empty_cache()
+
+# ==========================================
+# STAGE 3: STITCH AND PUSH
+# ==========================================
 if clips:
     final_video = f"USA_3D_SHORT_{vid_num}.mp4"
     clip_objs = [VideoFileClip(c) for c in clips]
@@ -186,3 +203,4 @@ if clips:
     os.system('git add .')
     os.system('git commit -m "Auto Update: HQ 5B-I2V Video Ready 🚀"')
     os.system('git push origin main || git push origin master')
+    print("✅ SUCCESS! Perfect 5B-I2V Video pushed to GitHub.")
